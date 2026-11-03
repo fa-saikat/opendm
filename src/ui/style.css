@@ -51,18 +51,19 @@ button.idm-sidebar-close-btn {
     min-width: 20px;
 }
 
-.idm-category-list {
+/* Category and download lists are GtkListBox widgets: the theme draws
+   row selection (row:selected) itself. */
+list.idm-category-list {
     padding: 2px 6px 6px 6px;
+    background-color: transparent;
+}
+
+list.idm-category-list row {
+    border-radius: 6px;
 }
 
 .idm-tree-row {
     padding: 4px 6px;
-    border-radius: 6px;
-}
-
-.idm-tree-row.selected {
-    background-color: @theme_selected_bg_color;
-    color: @theme_selected_fg_color;
 }
 
 button.idm-tree-arrow-btn {
@@ -94,10 +95,6 @@ button.idm-tree-arrow-btn {
     border-bottom: 1px solid alpha(@borders, 0.5);
 }
 
-.idm-download-row.selected {
-    background-color: @theme_selected_bg_color;
-    color: @theme_selected_fg_color;
-}
 
 .idm-badge {
     padding: 1px 8px;
@@ -111,7 +108,7 @@ button.idm-tree-arrow-btn {
 .idm-badge-paused      { color: #c64600; background-color: alpha(#c64600, 0.15); }
 .idm-badge-queued      { color: #77767b; background-color: alpha(#77767b, 0.15); }
 
-.idm-download-row.selected .idm-badge {
+list.idm-download-list row:selected .idm-badge {
     color: @theme_selected_fg_color;
     background-color: alpha(@theme_selected_fg_color, 0.2);
 }

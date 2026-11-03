@@ -384,9 +384,18 @@ void MainWindow::setup_sidebar(GtkWidget* paned) {
     gtk_widget_set_vexpand(scroll, TRUE);
     gtk_container_add(GTK_CONTAINER(sidebar_vbox_), scroll);
 
-    sidebar_list_ = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
+    // GtkListBox so the theme draws the selected category natively
+    sidebar_list_ = gtk_list_box_new();
+    gtk_list_box_set_selection_mode(GTK_LIST_BOX(sidebar_list_), GTK_SELECTION_SINGLE);
     ui::add_class(sidebar_list_, "idm-category-list");
     gtk_container_add(GTK_CONTAINER(scroll), sidebar_list_);
+    g_signal_connect(sidebar_list_, "row-selected", G_CALLBACK(+[](GtkListBox*, GtkListBoxRow* row, gpointer d) {
+        auto* self = static_cast<MainWindow*>(d);
+        if (!row || self->syncing_category_selection_) return;
+        GtkWidget* child = gtk_bin_get_child(GTK_BIN(row));
+        const char* cname = child ? static_cast<const char*>(g_object_get_data(G_OBJECT(child), "cat_name")) : nullptr;
+        if (cname) self->on_category_selected(cname);
+    }), this);
 
     // Setup hierarchy data
     category_expanded_["All Downloads"] = true;
@@ -421,9 +430,7 @@ void MainWindow::setup_sidebar(GtkWidget* paned) {
     for (const auto& item : items) {
         GtkWidget* row_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4);
         ui::add_class(row_box, "idm-tree-row");
-        if (item.name == current_category_) {
-            ui::add_class(row_box, "selected");
-        }
+        g_object_set_data_full(G_OBJECT(row_box), "cat_name", g_strdup(item.name.c_str()), g_free);
 
         if (item.is_parent) {
             bool exp = category_expanded_[item.name];
@@ -470,30 +477,24 @@ void MainWindow::setup_sidebar(GtkWidget* paned) {
         gtk_widget_set_hexpand(lbl, TRUE);
         gtk_container_add(GTK_CONTAINER(row_box), lbl);
 
-        // Click handler on category row (event box wrapper; CSS stays on row_box)
-        GtkWidget* row_click = ui::wrap_clickable(row_box);
-        g_object_set_data_full(G_OBJECT(row_click), "cat_name", g_strdup(item.name.c_str()), g_free);
-        g_signal_connect(row_click, "button-press-event", G_CALLBACK(+[](GtkWidget* w, GdkEventButton* ev, gpointer d) -> gboolean {
-            if (ev->type != GDK_BUTTON_PRESS || ev->button != 1) return GDK_EVENT_PROPAGATE;
-            auto* self = static_cast<MainWindow*>(d);
-            const char* cname = static_cast<const char*>(g_object_get_data(G_OBJECT(w), "cat_name"));
-            if (cname) {
-                self->on_category_selected(cname);
-            }
-            return GDK_EVENT_PROPAGATE;
-        }), this);
-
         category_rows_[item.name] = row_box;
+
+        // GtkListBox wraps row_box in a GtkListBoxRow (its parent).
+        gtk_container_add(GTK_CONTAINER(sidebar_list_), row_box);
+        GtkWidget* list_row = gtk_widget_get_parent(row_box);
 
         // Child rows are toggled by the expander arrow, so manage their visibility manually
         // instead of letting gtk_widget_show_all() reveal collapsed entries.
-        gtk_widget_show_all(row_click);
+        gtk_widget_show_all(list_row);
         if (!item.parent.empty()) {
-            gtk_widget_set_no_show_all(row_click, TRUE);
-            gtk_widget_set_visible(row_click, category_expanded_[item.parent]);
+            gtk_widget_set_no_show_all(list_row, TRUE);
+            gtk_widget_set_visible(list_row, category_expanded_[item.parent]);
         }
-
-        gtk_container_add(GTK_CONTAINER(sidebar_list_), row_click);
+        if (item.name == current_category_) {
+            syncing_category_selection_ = true;
+            gtk_list_box_select_row(GTK_LIST_BOX(sidebar_list_), GTK_LIST_BOX_ROW(list_row));
+            syncing_category_selection_ = false;
+        }
     }
 
     gtk_paned_pack1(GTK_PANED(paned), sidebar_vbox_, FALSE, FALSE);
@@ -597,11 +598,13 @@ void MainWindow::on_sidebar_toggle_clicked() {
 
 void MainWindow::on_category_selected(const std::string& category) {
     current_category_ = category;
-    for (auto& [name, widget] : category_rows_) {
-        if (name == category) {
-            ui::add_class(widget, "selected");
-        } else {
-            ui::remove_class(widget, "selected");
+    auto it = category_rows_.find(category);
+    if (it != category_rows_.end()) {
+        GtkWidget* list_row = gtk_widget_get_parent(it->second);
+        if (GTK_IS_LIST_BOX_ROW(list_row)) {
+            syncing_category_selection_ = true;
+            gtk_list_box_select_row(GTK_LIST_BOX(sidebar_list_), GTK_LIST_BOX_ROW(list_row));
+            syncing_category_selection_ = false;
         }
     }
     refresh_downloads_list();
@@ -618,8 +621,48 @@ gboolean MainWindow::on_tick_refresh(gpointer user_data) {
 void MainWindow::refresh_downloads_list() {
     auto sessions = QueueManager::instance().get_main_queue().get_all_sessions();
 
-    // Remove existing row children
+    // Rebuild the list. Selection signals fired while rows are destroyed and
+    // re-created must not change the user's selection.
+    rebuilding_list_ = true;
     ui::clear_container(downloads_container_);
+
+    // GtkListBox so the theme draws the selected download natively
+    downloads_list_ = gtk_list_box_new();
+    gtk_list_box_set_selection_mode(GTK_LIST_BOX(downloads_list_), GTK_SELECTION_SINGLE);
+    gtk_list_box_set_activate_on_single_click(GTK_LIST_BOX(downloads_list_), FALSE);
+    ui::add_class(downloads_list_, "idm-download-list");
+    gtk_widget_add_events(downloads_list_, GDK_BUTTON_PRESS_MASK);
+    gtk_container_add(GTK_CONTAINER(downloads_container_), downloads_list_);
+
+    g_signal_connect(downloads_list_, "row-selected", G_CALLBACK(+[](GtkListBox*, GtkListBoxRow* row, gpointer d) {
+        auto* self = static_cast<MainWindow*>(d);
+        if (self->rebuilding_list_) return;
+        const char* sid = row ? static_cast<const char*>(g_object_get_data(
+            G_OBJECT(gtk_bin_get_child(GTK_BIN(row))), "session_id")) : nullptr;
+        self->selected_session_id_ = sid ? sid : "";
+        self->update_toolbar_sensitivity();
+    }), this);
+
+    // Double-click / Enter opens the progress dialog (or the finished file)
+    g_signal_connect(downloads_list_, "row-activated", G_CALLBACK(+[](GtkListBox*, GtkListBoxRow* row, gpointer d) {
+        const char* sid = static_cast<const char*>(g_object_get_data(
+            G_OBJECT(gtk_bin_get_child(GTK_BIN(row))), "session_id"));
+        if (sid) static_cast<MainWindow*>(d)->on_row_activated(sid);
+    }), this);
+
+    // Right-click selects the row under the pointer and opens the context menu
+    g_signal_connect(downloads_list_, "button-press-event", G_CALLBACK(+[](GtkWidget* list, GdkEventButton* ev, gpointer d) -> gboolean {
+        if (ev->button != 3 || ev->type != GDK_BUTTON_PRESS) return GDK_EVENT_PROPAGATE;
+        GtkListBoxRow* row = gtk_list_box_get_row_at_y(GTK_LIST_BOX(list), static_cast<int>(ev->y));
+        if (!row) return GDK_EVENT_PROPAGATE;
+        gtk_list_box_select_row(GTK_LIST_BOX(list), row);
+        const char* sid = static_cast<const char*>(g_object_get_data(
+            G_OBJECT(gtk_bin_get_child(GTK_BIN(row))), "session_id"));
+        if (sid) static_cast<MainWindow*>(d)->on_row_right_clicked(ev, sid);
+        return GDK_EVENT_STOP;
+    }), this);
+
+    GtkWidget* row_to_select = nullptr;
 
     // Recreate column size groups for synchronized column widths
     for (auto* sg : col_size_groups_) {
@@ -662,9 +705,6 @@ void MainWindow::refresh_downloads_list() {
         gtk_widget_set_hexpand(row_box, TRUE);
         g_object_set_data_full(G_OBJECT(row_box), "session_id", g_strdup(s->get_id().c_str()), g_free);
 
-        if (s->get_id() == selected_session_id_) {
-            ui::add_class(row_box, "selected");
-        }
 
         // Col 0: File Name (Icon + text)
         GtkWidget* col0 = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
@@ -740,46 +780,10 @@ void MainWindow::refresh_downloads_list() {
         }
         add_col_cell(5, domain, 11);
 
-        // Row selection, right-click context menu, and double-click activation.
-        // The event box wrapper receives pointer events; CSS stays on row_box.
-        GtkWidget* row_click = ui::wrap_clickable(row_box);
-        g_object_set_data_full(G_OBJECT(row_click), "session_id", g_strdup(s->get_id().c_str()), g_free);
-
-        g_signal_connect(row_click, "button-press-event", G_CALLBACK(+[](GtkWidget* w, GdkEventButton* ev, gpointer d) -> gboolean {
-            auto* self = static_cast<MainWindow*>(d);
-            const char* sid = static_cast<const char*>(g_object_get_data(G_OBJECT(w), "session_id"));
-            if (!sid) return GDK_EVENT_PROPAGATE;
-            std::string session_id = sid;
-            self->selected_session_id_ = session_id;
-            self->update_toolbar_sensitivity();
-
-            // Visually highlight row without rebuilding the list
-            GList* rows = gtk_container_get_children(GTK_CONTAINER(self->downloads_container_));
-            for (GList* l = rows; l != nullptr; l = l->next) {
-                GtkWidget* c = GTK_WIDGET(l->data);
-                const char* csid = static_cast<const char*>(g_object_get_data(G_OBJECT(c), "session_id"));
-                GtkWidget* inner = GTK_IS_BIN(c) ? gtk_bin_get_child(GTK_BIN(c)) : nullptr;
-                if (!inner) continue;
-                if (csid && session_id == csid) {
-                    ui::add_class(inner, "selected");
-                } else {
-                    ui::remove_class(inner, "selected");
-                }
-            }
-            g_list_free(rows);
-
-            if (ev->button == 1) { // Left-click
-                if (ev->type == GDK_2BUTTON_PRESS) {
-                    self->on_row_activated(session_id);
-                }
-            } else if (ev->button == 3 && ev->type == GDK_BUTTON_PRESS) { // Right-click context menu
-                self->on_row_right_clicked(ev, session_id);
-                return GDK_EVENT_STOP;
-            }
-            return GDK_EVENT_PROPAGATE;
-        }), this);
-
-        gtk_container_add(GTK_CONTAINER(downloads_container_), row_click);
+        gtk_container_add(GTK_CONTAINER(downloads_list_), row_box);
+        if (s->get_id() == selected_session_id_) {
+            row_to_select = gtk_widget_get_parent(row_box);
+        }
     }
 
     // Modern GTK Empty State when 0 downloads
@@ -821,6 +825,10 @@ void MainWindow::refresh_downloads_list() {
 
     // Rows are created after the window is mapped; GTK3 widgets start hidden.
     gtk_widget_show_all(downloads_container_);
+    if (row_to_select) {
+        gtk_list_box_select_row(GTK_LIST_BOX(downloads_list_), GTK_LIST_BOX_ROW(row_to_select));
+    }
+    rebuilding_list_ = false;
 
     // Update status bar panels
     std::string count_str = std::to_string(sessions.size()) + " files";
