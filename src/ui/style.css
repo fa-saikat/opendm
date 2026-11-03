@@ -77,10 +77,10 @@ button.idm-tree-arrow-btn {
     background-color: @theme_base_color;
 }
 
+/* The line under the header is a GtkSeparator set in code. */
 .idm-table-header {
     padding: 6px 12px;
     background-color: @theme_bg_color;
-    border-bottom: 1px solid @borders;
 }
 
 .idm-col-header {
