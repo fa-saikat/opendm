@@ -32,3 +32,28 @@ installs on Ubuntu 22.04/24.04 and Debian 12/13.
 
 Optional environment overrides: `DEB_REVISION` (default `1`) and
 `DEB_MAINTAINER`.
+
+## Fedora / openSUSE / RHEL-likes (`.rpm`)
+
+```bash
+# Fedora
+sudo dnf install -y rpm-build git cmake make gcc-c++ gtk3-devel libcurl-devel \
+    zlib-devel json-devel desktop-file-utils
+# openSUSE
+sudo zypper install rpm-build git cmake make gcc-c++ gtk3-devel libcurl-devel \
+    zlib-devel nlohmann_json-devel desktop-file-utils
+
+./scripts/package_rpm.sh
+sudo dnf install ./dist/opendm-*.x86_64.rpm      # or: sudo zypper install ./dist/...
+```
+
+The spec lives in `packaging/rpm/opendm.spec` and uses `pkgconfig(...)` /
+`cmake(...)` build requirements, so the same spec resolves on Fedora, openSUSE
+and RHEL-likes (EPEL provides `json-devel` there). The script builds a source
+tarball from the tracked files, writes a `%changelog` entry for the current
+version, and runs `rpmbuild -ba`. The binary and source RPMs are copied to
+`dist/`.
+
+`%check` runs `desktop-file-validate` and the test suite. `YouTubeEngineTest`
+is skipped because it needs live network access, which build systems such as
+mock/Koji/OBS don't provide.
