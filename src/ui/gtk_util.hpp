@@ -35,6 +35,14 @@ inline GtkWidget* combo_new_from_strings(const char* const* items) {
     return combo;
 }
 
+// Borderless button. GTK3 themes don't all honour the "flat" style class,
+// so also set the native relief.
+inline void make_flat(GtkWidget* button) {
+    gtk_button_set_relief(GTK_BUTTON(button), GTK_RELIEF_NONE);
+    gtk_widget_set_focus_on_click(button, FALSE);
+    add_class(button, "flat");
+}
+
 // Wraps a window-less widget (box, label, ...) in an input-only GtkEventBox so
 // it can receive "button-press-event". CSS classes stay on the wrapped child.
 inline GtkWidget* wrap_clickable(GtkWidget* child) {

@@ -91,7 +91,7 @@ GtkWidget* UiAssets::create_toolbar_button(
     bool has_dropdown) {
 
     GtkWidget* btn = gtk_button_new();
-    ui::add_class(btn, "flat");
+    ui::make_flat(btn);
     ui::add_class(btn, "idm-toolbar-btn");
     if (is_primary) {
         ui::add_class(btn, "suggested-action");

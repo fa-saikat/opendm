@@ -357,7 +357,7 @@ void MainWindow::setup_sidebar(GtkWidget* paned) {
     gtk_container_add(GTK_CONTAINER(header_box), header_lbl);
 
     GtkWidget* close_btn = gtk_button_new_with_label("×");
-    ui::add_class(close_btn, "flat");
+    ui::make_flat(close_btn);
     ui::add_class(close_btn, "idm-sidebar-close-btn");
     gtk_widget_set_tooltip_text(close_btn, "Hide Categories");
     g_signal_connect(close_btn, "clicked", G_CALLBACK(+[](GtkButton*, gpointer d) {
@@ -406,7 +406,7 @@ void MainWindow::setup_sidebar(GtkWidget* paned) {
     };
 
     for (const auto& item : items) {
-        GtkWidget* row_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+        GtkWidget* row_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4);
         ui::add_class(row_box, "idm-tree-row");
         if (item.name == current_category_) {
             ui::add_class(row_box, "selected");
@@ -414,9 +414,14 @@ void MainWindow::setup_sidebar(GtkWidget* paned) {
 
         if (item.is_parent) {
             bool exp = category_expanded_[item.name];
-            GtkWidget* arrow_btn = gtk_button_new_with_label(exp ? "▾" : "▸");
-            ui::add_class(arrow_btn, "flat");
+            // Compact borderless expander using the theme's own arrow icons
+            GtkWidget* arrow_btn = gtk_button_new();
+            gtk_button_set_image(GTK_BUTTON(arrow_btn), gtk_image_new_from_icon_name(
+                exp ? "pan-down-symbolic" : "pan-end-symbolic", GTK_ICON_SIZE_MENU));
+            ui::make_flat(arrow_btn);
+            gtk_button_set_always_show_image(GTK_BUTTON(arrow_btn), TRUE);
             ui::add_class(arrow_btn, "idm-tree-arrow-btn");
+            gtk_widget_set_valign(arrow_btn, GTK_ALIGN_CENTER);
             
             // Store category name on arrow
             g_object_set_data_full(G_OBJECT(arrow_btn), "cat_name", g_strdup(item.name.c_str()), g_free);
@@ -426,7 +431,8 @@ void MainWindow::setup_sidebar(GtkWidget* paned) {
                 if (!cname) return;
                 bool new_exp = !self->category_expanded_[cname];
                 self->category_expanded_[cname] = new_exp;
-                gtk_button_set_label(btn, new_exp ? "▾" : "▸");
+                gtk_button_set_image(btn, gtk_image_new_from_icon_name(
+                    new_exp ? "pan-down-symbolic" : "pan-end-symbolic", GTK_ICON_SIZE_MENU));
                 for (const auto& child : self->category_children_[cname]) {
                     auto it = self->category_rows_.find(child);
                     if (it != self->category_rows_.end()) {
@@ -438,7 +444,7 @@ void MainWindow::setup_sidebar(GtkWidget* paned) {
         } else {
             // Indent spacer
             GtkWidget* spacer = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
-            gtk_widget_set_size_request(spacer, item.parent.empty() ? 16 : 28, -1);
+            gtk_widget_set_size_request(spacer, item.parent.empty() ? 20 : 36, -1);
             gtk_container_add(GTK_CONTAINER(row_box), spacer);
         }
 
@@ -559,7 +565,7 @@ void MainWindow::setup_statusbar(GtkWidget* parent_box) {
     gtk_container_add(GTK_CONTAINER(bar), status_panel_speed_);
 
     status_panel_limiter_ = gtk_button_new_with_label("Speed Limiter: OFF");
-    ui::add_class(status_panel_limiter_, "flat");
+    ui::make_flat(status_panel_limiter_);
     ui::add_class(status_panel_limiter_, "idm-status-panel-btn");
     g_signal_connect(status_panel_limiter_, "clicked", G_CALLBACK(+[](GtkButton*, gpointer d) {
         static_cast<MainWindow*>(d)->on_speed_limiter_clicked();
