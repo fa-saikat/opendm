@@ -157,10 +157,20 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/extension_extracted")
 endif()
 
 # Browser Native Messaging Manifests
+# Firefox only searches lib/mozilla (and lib64/mozilla), never the multiarch
+# libdir that CMAKE_INSTALL_LIBDIR expands to on Debian/Ubuntu.
 install(FILES data/native-messaging/com.tonec.idm.firefox.json
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/mozilla/native-messaging-hosts
+    DESTINATION lib/mozilla/native-messaging-hosts
     RENAME com.tonec.idm.json
 )
+# Chrome and Chromium read system-wide manifests from /etc
+# (CMAKE_INSTALL_FULL_SYSCONFDIR resolves to /etc for a /usr prefix).
+foreach(chrome_dir opt/chrome chromium)
+    install(FILES data/native-messaging/com.tonec.idm.chrome.json
+        DESTINATION ${CMAKE_INSTALL_FULL_SYSCONFDIR}/${chrome_dir}/native-messaging-hosts
+        RENAME com.tonec.idm.json
+    )
+endforeach()
 
 # CPack Debian Package Configuration
 set(CPACK_PACKAGE_NAME "opendm")
