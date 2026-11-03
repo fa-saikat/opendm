@@ -27,11 +27,7 @@ mkdir -p "${STAGE_DIR}"
 # 4. Install files to staging directory
 DESTDIR="${STAGE_DIR}" cmake --install "${SCRIPT_DIR}/build" --prefix /usr
 
-# 5. Install system-wide Chrome/Chromium native messaging manifests
-mkdir -p "${STAGE_DIR}/etc/opt/chrome/native-messaging-hosts"
-mkdir -p "${STAGE_DIR}/etc/chromium/native-messaging-hosts"
-cp -f "${SCRIPT_DIR}/data/native-messaging/com.tonec.idm.chrome.json" "${STAGE_DIR}/etc/opt/chrome/native-messaging-hosts/com.tonec.idm.json"
-cp -f "${SCRIPT_DIR}/data/native-messaging/com.tonec.idm.chrome.json" "${STAGE_DIR}/etc/chromium/native-messaging-hosts/com.tonec.idm.json"
+# 5. Chrome/Chromium/Firefox native messaging manifests are installed by CMake.
 
 # 6. Compute installed size in KB
 INSTALLED_SIZE=$(du -sk "${STAGE_DIR}" | cut -f1)
