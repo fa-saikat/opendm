@@ -99,6 +99,8 @@ GtkWidget* UiAssets::create_toolbar_button(
     gtk_widget_set_tooltip_text(btn, tooltip_text.c_str());
 
     GtkWidget* box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
+    gtk_widget_set_margin_start(box, 4);
+    gtk_widget_set_margin_end(box, 4);
     gtk_widget_set_halign(box, GTK_ALIGN_CENTER);
     gtk_widget_set_valign(box, GTK_ALIGN_CENTER);
 
@@ -184,7 +186,6 @@ void UiAssets::apply_theme() {
         // Fallback when style.css is missing: layout-only rules that use the
         // theme's own colours, like style.css itself.
         static const char* fallback_css = R"(
-            .idm-toolbar-box { padding: 4px 6px; border-bottom: 1px solid @borders; }
             .idm-sidebar-frame { border-right: 1px solid @borders; }
             .idm-table-header { padding: 6px 12px; border-bottom: 1px solid @borders; }
             .idm-tree-row, .idm-download-row { padding: 4px 8px; }
