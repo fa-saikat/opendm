@@ -86,7 +86,7 @@ ProgressDialog::~ProgressDialog() {
 
 void ProgressDialog::setup_ui() {
     window_ = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-    gtk_window_set_title(GTK_WINDOW(window_), ("OpenDM - " + session_->get_filename()).c_str());
+    gtk_window_set_title(GTK_WINDOW(window_), "OpenDM - 0%");
     gtk_window_set_default_size(GTK_WINDOW(window_), 520, 510);
     gtk_window_set_resizable(GTK_WINDOW(window_), TRUE);
     ui::add_class(window_, "idm-progress-window");
@@ -149,6 +149,17 @@ void ProgressDialog::setup_status_tab(GtkWidget* notebook) {
     gtk_container_add(GTK_CONTAINER(page_vbox), meta_frame);
 
     // Full URL row
+    // File name (the window title only shows the percentage)
+    GtkWidget* label_filename = gtk_label_new(nullptr);
+    gchar* fname_markup = g_markup_printf_escaped("<b>%s</b>", session_->get_filename().c_str());
+    gtk_label_set_markup(GTK_LABEL(label_filename), fname_markup);
+    g_free(fname_markup);
+    gtk_label_set_xalign(GTK_LABEL(label_filename), 0.0f);
+    gtk_label_set_ellipsize(GTK_LABEL(label_filename), PANGO_ELLIPSIZE_MIDDLE);
+    gtk_label_set_selectable(GTK_LABEL(label_filename), TRUE);
+    gtk_widget_set_tooltip_text(label_filename, session_->get_filename().c_str());
+    gtk_container_add(GTK_CONTAINER(meta_box), label_filename);
+
     label_url_ = gtk_label_new(session_->get_url().c_str());
     gtk_label_set_xalign(GTK_LABEL(label_url_), 0.0f);
     gtk_label_set_selectable(GTK_LABEL(label_url_), TRUE);
@@ -574,10 +585,14 @@ void ProgressDialog::update_ui() {
 
     DownloadProgress p = session_->get_progress();
 
-    // Window title: Percentage + filename matching IDM
-    std::ostringstream ss_title;
-    ss_title << std::fixed << std::setprecision(1) << (p.progress_fraction * 100.0) << "% " << session_->get_filename();
-    gtk_window_set_title(GTK_WINDOW(window_), ss_title.str().c_str());
+    // Short window title; the file name is shown inside the dialog.
+    std::string title = "OpenDM - ";
+    if (p.status == SessionStatus::COMPLETED) {
+        title += "Complete";
+    } else {
+        title += std::to_string(static_cast<int>(p.progress_fraction * 100.0)) + "%";
+    }
+    gtk_window_set_title(GTK_WINDOW(window_), title.c_str());
 
     // Status line: classic IDM format
     gtk_label_set_text(GTK_LABEL(label_status_), status_to_string(p.status).c_str());
