@@ -2,14 +2,35 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [ -f "${HOME}/.local/bin/opendm-native-host" ]; then
-    HOST_BIN="${HOME}/.local/bin/opendm-native-host"
-elif [ -f "${SCRIPT_DIR}/build/opendm-native-host" ]; then
-    HOST_BIN="${SCRIPT_DIR}/build/opendm-native-host"
-else
-    echo "Error: Native messaging host binary not found in ~/.local/bin or build directory."
-    echo "Please build and run ./install_desktop.sh first."
+# Locate the native messaging host. Order: explicit override, per-user
+# install (install_desktop.sh), local build tree, then the system install
+# done by the .deb/.rpm/Arch packages.
+HOST_BIN=""
+for candidate in \
+    "${OPENDM_NATIVE_HOST:-}" \
+    "${HOME}/.local/bin/opendm-native-host" \
+    "${SCRIPT_DIR}/build/opendm-native-host" \
+    "$(command -v opendm-native-host 2>/dev/null || true)" \
+    /usr/bin/opendm-native-host \
+    /usr/local/bin/opendm-native-host; do
+    if [ -n "${candidate}" ] && [ -x "${candidate}" ]; then
+        HOST_BIN="${candidate}"
+        break
+    fi
+done
+
+if [ -z "${HOST_BIN}" ]; then
+    echo "Error: opendm-native-host not found."
+    echo "Install the OpenDM package for your distribution, or build from source and run ./install_desktop.sh."
+    echo "You can also point to the binary with OPENDM_NATIVE_HOST=/path/to/opendm-native-host."
     exit 1
+fi
+echo "Using native messaging host: ${HOST_BIN}"
+
+if [ "${HOST_BIN}" = "/usr/bin/opendm-native-host" ]; then
+    echo "Note: the OpenDM package already registers the host system-wide for Firefox,"
+    echo "Google Chrome and Chromium. This script adds per-user manifests, which also"
+    echo "cover Brave and Microsoft Edge."
 fi
 
 MANIFEST_CONTENT_CHROME=$(cat <<EOF
@@ -48,7 +69,9 @@ CHROME_TARGETS=(
     "${HOME}/.config/microsoft-edge/NativeMessagingHosts"
 )
 
+# Only register browsers that have a profile directory (i.e. are installed and used).
 for dir in "${CHROME_TARGETS[@]}"; do
+    [ -d "$(dirname "${dir}")" ] || continue
     mkdir -p "${dir}"
     echo "${MANIFEST_CONTENT_CHROME}" > "${dir}/com.tonec.idm.json"
     echo "Installed Chrome manifest to ${dir}/com.tonec.idm.json"
@@ -61,6 +84,7 @@ FIREFOX_TARGETS=(
 )
 
 for dir in "${FIREFOX_TARGETS[@]}"; do
+    [ -d "$(dirname "${dir}")" ] || continue
     mkdir -p "${dir}"
     echo "${MANIFEST_CONTENT_FIREFOX}" > "${dir}/com.tonec.idm.json"
     echo "Installed Firefox manifest to ${dir}/com.tonec.idm.json"

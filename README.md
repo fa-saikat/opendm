@@ -135,6 +135,10 @@ This installs:
 
 ## Browser Integration
 
+**Installed from a package?** The `.deb`, `.rpm` and Arch packages already register the native messaging host system-wide for Firefox, Google Chrome and Chromium. For Brave or Microsoft Edge, also run `./install_native_host.sh` from a checkout of this repository; it finds the packaged `/usr/bin/opendm-native-host` automatically. Then load the extension (steps 2–5).
+
+**Built from source:**
+
 1. Run `./install_desktop.sh` to install Native Messaging manifests.
 2. In your browser (Chrome / Brave / Edge), navigate to `chrome://extensions/`.
 3. Enable **Developer mode** (top right toggle).
