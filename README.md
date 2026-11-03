@@ -64,17 +64,18 @@ It currently works only for Linux (Debian) and tested working in Firefox. Not te
 ```bash
 sudo apt-get update
 sudo apt-get install -y cmake ninja-build g++ pkg-config \
-    libgtk-4-dev libcurl4-openssl-dev zlib1g-dev libssl-dev
+    libgtk-4-dev libcurl4-openssl-dev zlib1g-dev libssl-dev \
+    nlohmann-json3-dev
 ```
 
 **Fedora / RHEL:**
 ```bash
-sudo dnf install cmake ninja-build gcc-c++ gtk4-devel libcurl-devel zlib-devel openssl-devel
+sudo dnf install cmake ninja-build gcc-c++ gtk4-devel libcurl-devel zlib-devel openssl-devel json-devel
 ```
 
 **Arch Linux:**
 ```bash
-sudo pacman -S cmake ninja gcc gtk4 curl zlib openssl
+sudo pacman -S cmake ninja gcc gtk4 curl zlib openssl nlohmann-json
 ```
 
 ### 2. Build & Verify

@@ -8,6 +8,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 find_package(Threads REQUIRED)
 find_package(CURL REQUIRED)
 find_package(ZLIB REQUIRED)
+find_package(nlohmann_json 3 REQUIRED)
 find_package(PkgConfig REQUIRED)
 
 pkg_check_modules(GTK3 REQUIRED IMPORTED_TARGET gtk+-3.0>=3.22)
@@ -39,6 +40,7 @@ add_library(opendm_core STATIC
 target_link_libraries(opendm_core PUBLIC
     CURL::libcurl
     ZLIB::ZLIB
+    nlohmann_json::nlohmann_json
     Threads::Threads
 )
 
