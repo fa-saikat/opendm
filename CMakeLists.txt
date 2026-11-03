@@ -10,7 +10,7 @@ find_package(CURL REQUIRED)
 find_package(ZLIB REQUIRED)
 find_package(PkgConfig REQUIRED)
 
-pkg_check_modules(GTK4 REQUIRED IMPORTED_TARGET gtk4)
+pkg_check_modules(GTK3 REQUIRED IMPORTED_TARGET gtk+-3.0>=3.22)
 
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/src
@@ -42,7 +42,7 @@ target_link_libraries(opendm_core PUBLIC
     Threads::Threads
 )
 
-# Main executable (GTK4 + CLI)
+# Main executable (GTK3 + CLI)
 add_executable(opendm
     src/ui/ui_assets.cpp
     src/ui/add_url_dialog.cpp
@@ -61,7 +61,7 @@ add_executable(opendm
 
 target_link_libraries(opendm PRIVATE
     opendm_core
-    PkgConfig::GTK4
+    PkgConfig::GTK3
 )
 
 # Native Messaging Host for Chrome / Firefox WebExtension

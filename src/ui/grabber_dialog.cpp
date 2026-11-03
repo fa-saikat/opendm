@@ -1,4 +1,5 @@
 #include "grabber_dialog.hpp"
+#include "gtk_util.hpp"
 #include "../core/download_queue.hpp"
 #include <iostream>
 #include <sstream>
@@ -15,7 +16,7 @@ GrabberDialog::~GrabberDialog() {
 }
 
 void GrabberDialog::show() {
-    gtk_window_present(GTK_WINDOW(window_));
+    ui::present(window_);
 }
 
 void GrabberDialog::close() {
@@ -24,23 +25,23 @@ void GrabberDialog::close() {
     }
     grabber_.stop();
     if (window_) {
-        gtk_window_destroy(GTK_WINDOW(window_));
+        gtk_widget_destroy(GTK_WIDGET(window_));
         window_ = nullptr;
     }
 }
 
 void GrabberDialog::setup_ui() {
-    window_ = gtk_window_new();
+    window_ = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     gtk_window_set_title(GTK_WINDOW(window_), "OpenDM Site Grabber (Web Spider)");
     gtk_window_set_default_size(GTK_WINDOW(window_), 720, 540);
     if (parent_) {
         gtk_window_set_transient_for(GTK_WINDOW(window_), parent_);
     }
 
-    g_signal_connect(window_, "close-request", G_CALLBACK(+[](GtkWindow*, gpointer data) -> gboolean {
+    g_signal_connect(window_, "delete-event", G_CALLBACK(+[](GtkWidget*, GdkEvent*, gpointer data) -> gboolean {
         auto* self = static_cast<GrabberDialog*>(data);
         self->close();
-        return FALSE;
+        return TRUE; // close() already destroyed the window
     }), this);
 
     GtkWidget* vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
@@ -48,11 +49,11 @@ void GrabberDialog::setup_ui() {
     gtk_widget_set_margin_end(vbox, 16);
     gtk_widget_set_margin_top(vbox, 16);
     gtk_widget_set_margin_bottom(vbox, 16);
-    gtk_window_set_child(GTK_WINDOW(window_), vbox);
+    gtk_container_add(GTK_CONTAINER(window_), vbox);
 
     // Configuration Frame
     GtkWidget* cfg_frame = gtk_frame_new("Crawl Settings");
-    gtk_box_append(GTK_BOX(vbox), cfg_frame);
+    gtk_container_add(GTK_CONTAINER(vbox), cfg_frame);
 
     GtkWidget* grid = gtk_grid_new();
     gtk_grid_set_row_spacing(GTK_GRID(grid), 8);
@@ -61,7 +62,7 @@ void GrabberDialog::setup_ui() {
     gtk_widget_set_margin_end(grid, 12);
     gtk_widget_set_margin_top(grid, 8);
     gtk_widget_set_margin_bottom(grid, 8);
-    gtk_frame_set_child(GTK_FRAME(cfg_frame), grid);
+    gtk_container_add(GTK_CONTAINER(cfg_frame), grid);
 
     // URL
     GtkWidget* lbl_url = gtk_label_new("Start Webpage Address:");
@@ -83,7 +84,7 @@ void GrabberDialog::setup_ui() {
     // Domain scope
     GtkWidget* lbl_domain = gtk_label_new("Domain Boundary:");
     gtk_label_set_xalign(GTK_LABEL(lbl_domain), 0.0f);
-    domain_combo_ = gtk_drop_down_new_from_strings((const char*[]){
+    domain_combo_ = ui::combo_new_from_strings((const char*[]){
         "Stay on same domain only",
         "Include all subdomains",
         "Any domain",
@@ -102,58 +103,58 @@ void GrabberDialog::setup_ui() {
     chk_docs_ = gtk_check_button_new_with_label("Documents");
     chk_images_ = gtk_check_button_new_with_label("Images");
 
-    gtk_check_button_set_active(GTK_CHECK_BUTTON(chk_video_), TRUE);
-    gtk_check_button_set_active(GTK_CHECK_BUTTON(chk_audio_), TRUE);
-    gtk_check_button_set_active(GTK_CHECK_BUTTON(chk_compressed_), TRUE);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(chk_video_), TRUE);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(chk_audio_), TRUE);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(chk_compressed_), TRUE);
 
-    gtk_box_append(GTK_BOX(filter_box), chk_video_);
-    gtk_box_append(GTK_BOX(filter_box), chk_audio_);
-    gtk_box_append(GTK_BOX(filter_box), chk_compressed_);
-    gtk_box_append(GTK_BOX(filter_box), chk_docs_);
-    gtk_box_append(GTK_BOX(filter_box), chk_images_);
+    gtk_container_add(GTK_CONTAINER(filter_box), chk_video_);
+    gtk_container_add(GTK_CONTAINER(filter_box), chk_audio_);
+    gtk_container_add(GTK_CONTAINER(filter_box), chk_compressed_);
+    gtk_container_add(GTK_CONTAINER(filter_box), chk_docs_);
+    gtk_container_add(GTK_CONTAINER(filter_box), chk_images_);
     gtk_grid_attach(GTK_GRID(grid), filter_box, 1, 3, 2, 1);
 
     // Action buttons for crawl
     GtkWidget* crawl_btn_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
-    gtk_box_append(GTK_BOX(vbox), crawl_btn_box);
+    gtk_container_add(GTK_CONTAINER(vbox), crawl_btn_box);
 
     btn_start_ = gtk_button_new_with_label("▶ Start Crawl");
     btn_stop_ = gtk_button_new_with_label("⏹ Stop");
     gtk_widget_set_sensitive(btn_stop_, FALSE);
-    gtk_box_append(GTK_BOX(crawl_btn_box), btn_start_);
-    gtk_box_append(GTK_BOX(crawl_btn_box), btn_stop_);
+    gtk_container_add(GTK_CONTAINER(crawl_btn_box), btn_start_);
+    gtk_container_add(GTK_CONTAINER(crawl_btn_box), btn_stop_);
 
     status_label_ = gtk_label_new("Ready. Enter seed URL and click Start Crawl.");
     gtk_label_set_xalign(GTK_LABEL(status_label_), 0.0f);
     gtk_widget_set_hexpand(status_label_, TRUE);
-    gtk_box_append(GTK_BOX(crawl_btn_box), status_label_);
+    gtk_container_add(GTK_CONTAINER(crawl_btn_box), status_label_);
 
     // Results area
     GtkWidget* results_frame = gtk_frame_new("Discovered Files");
     gtk_widget_set_vexpand(results_frame, TRUE);
-    gtk_box_append(GTK_BOX(vbox), results_frame);
+    gtk_container_add(GTK_CONTAINER(vbox), results_frame);
 
-    GtkWidget* scroll = gtk_scrolled_window_new();
-    gtk_frame_set_child(GTK_FRAME(results_frame), scroll);
+    GtkWidget* scroll = gtk_scrolled_window_new(nullptr, nullptr);
+    gtk_container_add(GTK_CONTAINER(results_frame), scroll);
 
     results_container_ = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
     gtk_widget_set_margin_start(results_container_, 6);
     gtk_widget_set_margin_end(results_container_, 6);
     gtk_widget_set_margin_top(results_container_, 6);
     gtk_widget_set_margin_bottom(results_container_, 6);
-    gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(scroll), results_container_);
+    gtk_container_add(GTK_CONTAINER(scroll), results_container_);
 
     // Bottom Action Bar
     GtkWidget* bottom_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
     gtk_widget_set_halign(bottom_box, GTK_ALIGN_END);
-    gtk_box_append(GTK_BOX(vbox), bottom_box);
+    gtk_container_add(GTK_CONTAINER(vbox), bottom_box);
 
     btn_download_all_ = gtk_button_new_with_label("Add All Found to Download Queue");
     gtk_widget_set_sensitive(btn_download_all_, FALSE);
-    gtk_box_append(GTK_BOX(bottom_box), btn_download_all_);
+    gtk_container_add(GTK_CONTAINER(bottom_box), btn_download_all_);
 
     GtkWidget* btn_close = gtk_button_new_with_label("Close");
-    gtk_box_append(GTK_BOX(bottom_box), btn_close);
+    gtk_container_add(GTK_CONTAINER(bottom_box), btn_close);
 
     g_signal_connect_swapped(btn_start_, "clicked", G_CALLBACK(+[](GrabberDialog* self) {
         self->on_start_crawl_clicked();
@@ -173,43 +174,38 @@ void GrabberDialog::setup_ui() {
 }
 
 void GrabberDialog::on_start_crawl_clicked() {
-    const char* url_text = gtk_editable_get_text(GTK_EDITABLE(url_entry_));
+    const char* url_text = gtk_entry_get_text(GTK_ENTRY(url_entry_));
     if (!url_text || strlen(url_text) == 0) return;
 
     GrabberConfig cfg;
     cfg.seed_url = url_text;
     cfg.max_depth = static_cast<int>(gtk_spin_button_get_value(GTK_SPIN_BUTTON(depth_spin_)));
 
-    guint sel = gtk_drop_down_get_selected(GTK_DROP_DOWN(domain_combo_));
+    guint sel = static_cast<guint>(gtk_combo_box_get_active(GTK_COMBO_BOX(domain_combo_)));
     if (sel == 0) cfg.domain_scope = DomainScope::SAME_DOMAIN_ONLY;
     else if (sel == 1) cfg.domain_scope = DomainScope::INCLUDE_SUBDOMAINS;
     else cfg.domain_scope = DomainScope::ANY_DOMAIN;
 
     std::vector<std::string> exts;
-    if (gtk_check_button_get_active(GTK_CHECK_BUTTON(chk_video_))) {
+    if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(chk_video_))) {
         exts.insert(exts.end(), {"mp4", "mkv", "avi", "webm", "flv", "mov", "wmv", "ts"});
     }
-    if (gtk_check_button_get_active(GTK_CHECK_BUTTON(chk_audio_))) {
+    if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(chk_audio_))) {
         exts.insert(exts.end(), {"mp3", "flac", "wav", "aac", "ogg", "m4a", "opus"});
     }
-    if (gtk_check_button_get_active(GTK_CHECK_BUTTON(chk_compressed_))) {
+    if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(chk_compressed_))) {
         exts.insert(exts.end(), {"zip", "rar", "7z", "tar", "gz", "bz2", "xz", "iso"});
     }
-    if (gtk_check_button_get_active(GTK_CHECK_BUTTON(chk_docs_))) {
+    if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(chk_docs_))) {
         exts.insert(exts.end(), {"pdf", "docx", "doc", "xlsx", "xls", "txt", "epub"});
     }
-    if (gtk_check_button_get_active(GTK_CHECK_BUTTON(chk_images_))) {
+    if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(chk_images_))) {
         exts.insert(exts.end(), {"jpg", "jpeg", "png", "webp", "gif", "svg"});
     }
     cfg.file_extensions = exts;
 
     // Clear old results
-    GtkWidget* child = gtk_widget_get_first_child(results_container_);
-    while (child != nullptr) {
-        GtkWidget* next = gtk_widget_get_next_sibling(child);
-        gtk_box_remove(GTK_BOX(results_container_), child);
-        child = next;
-    }
+    ui::clear_container(results_container_);
     discovered_.clear();
 
     gtk_widget_set_sensitive(btn_start_, FALSE);
@@ -237,9 +233,10 @@ void GrabberDialog::on_start_crawl_clicked() {
                     gtk_label_set_ellipsize(GTK_LABEL(fn), PANGO_ELLIPSIZE_END);
                     gtk_widget_set_hexpand(fn, TRUE);
 
-                    gtk_box_append(GTK_BOX(row), icon);
-                    gtk_box_append(GTK_BOX(row), fn);
-                    gtk_box_append(GTK_BOX(e->self->results_container_), row);
+                    gtk_container_add(GTK_CONTAINER(row), icon);
+                    gtk_container_add(GTK_CONTAINER(row), fn);
+                    gtk_container_add(GTK_CONTAINER(e->self->results_container_), row);
+                    gtk_widget_show_all(row);
 
                     gtk_widget_set_sensitive(e->self->btn_download_all_, TRUE);
                 }

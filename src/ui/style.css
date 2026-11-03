@@ -1,4 +1,4 @@
-/* OpenDM - Modern Native GTK4 Desktop Theme (Adwaita Dark Aesthetic) - DPI Responsive */
+/* OpenDM - Modern Native GTK3 Desktop Theme (Adwaita Dark Aesthetic) - DPI Responsive */
 
 window, .idm-main-window {
     background-color: #242424;
@@ -127,7 +127,6 @@ window.idm-main-window button.idm-toolbar-btn.suggested-action:active {
 .idm-category-header-label {
     font-size: 0.8rem;
     font-weight: 700;
-    text-transform: uppercase;
     letter-spacing: 0.04rem;
     color: #888888;
 }
@@ -210,7 +209,6 @@ window.idm-main-window button.idm-tree-arrow-btn:hover {
 .idm-col-header {
     font-size: 0.8rem;
     font-weight: 600;
-    text-transform: uppercase;
     letter-spacing: 0.04rem;
     color: #9a9996;
 }
@@ -453,7 +451,6 @@ progressbar > progress {
 .idm-about-desc {
     font-size: 0.92rem;
     color: #deddda;
-    line-height: 1.35;
 }
 
 .idm-about-card {

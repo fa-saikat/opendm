@@ -205,12 +205,12 @@ int main(int argc, char* argv[]) {
             }
         }
     } else {
-        // GTK4 GUI Mode
+        // GTK3 GUI Mode
         GtkApplication* app = nullptr;
         if (!opts.screenshot_path.empty()) {
             app = gtk_application_new(nullptr, G_APPLICATION_NON_UNIQUE);
         } else {
-            app = gtk_application_new("com.opendm.app", G_APPLICATION_DEFAULT_FLAGS);
+            app = gtk_application_new("com.opendm.app", static_cast<GApplicationFlags>(0));
         }
 
         // Register quit action on app for Tasks -> Exit menubar item

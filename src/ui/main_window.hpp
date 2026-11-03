@@ -57,7 +57,7 @@ private:
     void on_sidebar_toggle_clicked();
     void on_category_selected(const std::string& category);
     void on_row_activated(const std::string& session_id);
-    void on_row_right_clicked(GtkGestureClick* gesture, int n_press, double x, double y, const std::string& session_id);
+    void on_row_right_clicked(GdkEventButton* event, const std::string& session_id);
     void update_toolbar_sensitivity();
 
     GtkApplication* app_{nullptr};
