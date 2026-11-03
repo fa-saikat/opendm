@@ -84,7 +84,7 @@ void AboutDialog::setup_ui() {
     gtk_label_set_xalign(GTK_LABEL(lbl_dev), 0.0f);
     gtk_container_add(GTK_CONTAINER(dev_info), lbl_dev);
 
-    GtkWidget* lbl_role = gtk_label_new("Software Engineer • Author & Maintainer");
+    GtkWidget* lbl_role = gtk_label_new("Creator & Original Author");
     ui::add_class(lbl_role, "idm-about-role");
     gtk_label_set_xalign(GTK_LABEL(lbl_role), 0.0f);
     gtk_container_add(GTK_CONTAINER(dev_info), lbl_role);
@@ -104,6 +104,15 @@ void AboutDialog::setup_ui() {
     gtk_container_add(GTK_CONTAINER(dev_row), btn_gh);
 
     gtk_container_add(GTK_CONTAINER(card), dev_row);
+
+    // Fork note: modified versions must be marked as such (NOTICE section 3).
+    GtkWidget* lbl_fork = gtk_label_new(nullptr);
+    gtk_label_set_markup(GTK_LABEL(lbl_fork),
+        "Modified fork (GTK3 port and distribution packaging) maintained by FA Saikat\n"
+        "<a href=\"https://github.com/fa-saikat/opendm\">github.com/fa-saikat/opendm</a>");
+    gtk_label_set_xalign(GTK_LABEL(lbl_fork), 0.0f);
+    ui::add_class(lbl_fork, "idm-about-sub");
+    gtk_container_add(GTK_CONTAINER(main_vbox), lbl_fork);
 
     // 4. License & Copyright
     GtkWidget* license_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);

@@ -7,21 +7,52 @@
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-orange.svg?style=for-the-badge)](LICENSE)
 [![Author: Nader Mahbub Khan](https://img.shields.io/badge/Author-Nader%20Mahbub%20Khan-blue?style=for-the-badge&logo=github)](https://github.com/nadermkhan)
 [![Platform: Linux](https://img.shields.io/badge/Platform-Linux-lightgrey.svg?style=for-the-badge&logo=linux)](https://kernel.org)
-[![Tests: 100% Passing](https://img.shields.io/badge/Tests-7%2F7%20Passed-brightgreen.svg?style=for-the-badge)](tests/)
+[![CI](https://img.shields.io/github/actions/workflow/status/fa-saikat/opendm/ci.yml?branch=main&style=for-the-badge&label=CI)](https://github.com/fa-saikat/opendm/actions/workflows/ci.yml)
 [![Zero Telemetry](https://img.shields.io/badge/Telemetry-0%25%20(None)-success.svg?style=for-the-badge)](SECURITY.md)
 
 **A high-performance, native C++20 / GTK3 recreation of Internet Download Manager (IDM).**  
-*Created by [Nader Mahbub Khan](https://github.com/nadermkhan).*
+*Created by [Nader Mahbub Khan](https://github.com/nadermkhan) ([nadermkhan/opendm](https://github.com/nadermkhan/opendm)).*  
+*This repository is a **modified fork**, ported to GTK3 and packaged for major distributions. It is not the official upstream project.*
 
-[Screenshots](#screenshots) • [Features](#features) • [Quick Start](#quick-start) • [Browser Integration](#browser-integration) • [Notice](#notice) • [License](#license--attribution)
+[About this fork](#about-this-fork) • [Install](#install-packages) • [Screenshots](#screenshots) • [Features](#features) • [Quick Start](#quick-start) • [Browser Integration](#browser-integration) • [Notice](#notice-from-the-original-author) • [License](#license--attribution)
 
 </div>
 
 ---
 
-## Notice
+## About this fork
+
+OpenDM was created by **Nader Mahbub Khan** ([nadermkhan/opendm](https://github.com/nadermkhan/opendm)). All credit for the original design, download engine, browser integration and media pipeline goes to him; see [AUTHORS](AUTHORS) and [NOTICE](NOTICE).
+
+This fork, maintained by [FA Saikat](https://github.com/fa-saikat), changes the following:
+
+* **GTK3 user interface**: the GUI was ported from GTK4 to GTK 3 (>= 3.22), so it runs on GTK3-only desktops and distributions.
+* **Distribution packages**: `.deb` (Debian/Ubuntu), `.rpm` (Fedora, openSUSE) and Arch Linux packages, built and install-tested in CI. See [docs/PACKAGING.md](docs/PACKAGING.md).
+* **Release automation**: GitHub Releases are published only when a `release/X.Y.Z` branch is merged into `main`.
+* **Fixes**: native-messaging manifest install paths, an out-of-bounds bug in the MP4 muxer, and missing build-dependency declarations.
+
+## Notice (from the original author)
 
 It currently works only for Linux (Debian) and tested working in Firefox. Not tested in Chrome and contributions are welcomed. Fork it and improve it. ☺️
+
+---
+
+## Install (packages)
+
+Download the package for your distribution from the [Releases](https://github.com/fa-saikat/opendm/releases) page:
+
+```bash
+# Ubuntu 22.04+ / Debian 12+ and derivatives
+sudo apt install ./opendm_*_amd64.deb
+# Fedora
+sudo dnf install ./opendm-*.fc*.x86_64.rpm
+# openSUSE Tumbleweed
+sudo zypper install ./opendm-*.suse.x86_64.rpm
+# Arch Linux and derivatives
+sudo pacman -U opendm-*-x86_64.pkg.tar.zst
+```
+
+Packages install the browser native-messaging manifests system-wide for Firefox, Chrome and Chromium.
 
 
 ---
@@ -81,7 +112,7 @@ sudo pacman -S cmake ninja gcc gtk3 curl zlib openssl nlohmann-json
 ### 2. Build & Verify
 
 ```bash
-git clone https://github.com/nadermkhan/opendm.git
+git clone https://github.com/fa-saikat/opendm.git
 cd opendm
 
 cmake -B build -S . -G Ninja
@@ -149,12 +180,15 @@ opendm/
 
 ---
 
-## Author & Maintainer
+## Authors
 
-* **Nader Mahbub Khan**
+* **Nader Mahbub Khan**: creator and original author
   * GitHub: [@nadermkhan](https://github.com/nadermkhan)
   * Email: muhammadnadermahbubkhan@gmail.com
   * Repository: [https://github.com/nadermkhan/opendm](https://github.com/nadermkhan/opendm)
+* **FA Saikat**: maintainer of this fork (GTK3 port, packaging, CI)
+  * GitHub: [@fa-saikat](https://github.com/fa-saikat)
+  * Repository: [https://github.com/fa-saikat/opendm](https://github.com/fa-saikat/opendm)
 
 ---
 

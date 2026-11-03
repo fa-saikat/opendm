@@ -8,5 +8,13 @@ OpenDM is an open-source, clean-room native Linux recreation of Internet Downloa
   * Email: muhammadnadermahbubkhan@gmail.com
   * Role: Original Author, System Architecture & Core Engine
 
+## Fork Maintainer (GTK3 fork)
+* **FA Saikat**
+  * GitHub: [@fa-saikat](https://github.com/fa-saikat)
+  * Repository: https://github.com/fa-saikat/opendm
+  * Role: GTK3 port, distribution packaging (deb/rpm/Arch), CI and release automation
+
+This fork is a modified version of OpenDM and is not the official upstream project.
+
 ## Contributors
 We welcome contributions from the community! See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines, licensing, and attribution requirements.
