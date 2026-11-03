@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${SCRIPT_DIR}"
 
 PACKAGE_NAME="opendm"
-VERSION="1.0.0-1"
+VERSION="$("${SCRIPT_DIR}/scripts/version.sh")-1"
 ARCH="amd64"
 DIST_DIR="${SCRIPT_DIR}/dist"
 STAGE_DIR="${SCRIPT_DIR}/build/deb_staging/${PACKAGE_NAME}_${VERSION}_${ARCH}"

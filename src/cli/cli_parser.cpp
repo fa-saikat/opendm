@@ -1,4 +1,5 @@
 #include "cli_parser.hpp"
+#include "version.hpp"
 #include <iostream>
 #include <cstring>
 #include <cstdlib>
@@ -98,7 +99,7 @@ void CliParser::print_help(const char* program_name) {
 }
 
 void CliParser::print_version() {
-    std::cout << "OpenDM 1.0.0 (Linux x86_64, GTK3, libcurl)\n"
+    std::cout << "OpenDM " OPENDM_VERSION " (Linux " OPENDM_ARCH ", GTK3, libcurl)\n"
               << "Engine: IDM 6.43.15 Algorithm Reimplementation\n";
 }
 

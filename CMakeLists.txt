@@ -13,8 +13,12 @@ find_package(PkgConfig REQUIRED)
 
 pkg_check_modules(GTK3 REQUIRED IMPORTED_TARGET gtk+-3.0>=3.22)
 
+# Single source of truth for the application version
+configure_file(src/version.hpp.in ${CMAKE_CURRENT_BINARY_DIR}/generated/version.hpp @ONLY)
+
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_BINARY_DIR}/generated
     ${CURL_INCLUDE_DIRS}
     ${ZLIB_INCLUDE_DIRS}
 )
@@ -176,10 +180,10 @@ endforeach()
 set(CPACK_PACKAGE_NAME "opendm")
 set(CPACK_PACKAGE_VENDOR "OpenDM Development Team")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "High-speed dynamic multipart download manager (IDM Architecture)")
-set(CPACK_PACKAGE_VERSION_MAJOR 1)
-set(CPACK_PACKAGE_VERSION_MINOR 0)
-set(CPACK_PACKAGE_VERSION_PATCH 0)
-set(CPACK_PACKAGE_VERSION "1.0.0")
+set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
+set(CPACK_PACKAGE_VERSION_MINOR ${PROJECT_VERSION_MINOR})
+set(CPACK_PACKAGE_VERSION_PATCH ${PROJECT_VERSION_PATCH})
+set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
 set(CPACK_PACKAGE_CONTACT "OpenDM Development Team <contact@opendm.org>")
 set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/nadermkhan/opendm")
 set(CPACK_GENERATOR "DEB")

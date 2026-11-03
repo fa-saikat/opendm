@@ -1,6 +1,7 @@
 #include "about_dialog.hpp"
 #include "gtk_util.hpp"
 #include "ui_assets.hpp"
+#include "version.hpp"
 #include <gio/gio.h>
 
 namespace opendm {
@@ -49,7 +50,7 @@ void AboutDialog::setup_ui() {
     gtk_label_set_xalign(GTK_LABEL(lbl_app), 0.0f);
     gtk_container_add(GTK_CONTAINER(title_vbox), lbl_app);
 
-    GtkWidget* lbl_version = gtk_label_new("Version 1.0.0 (Linux x86_64) • Native GTK3");
+    GtkWidget* lbl_version = gtk_label_new("Version " OPENDM_VERSION " (Linux " OPENDM_ARCH ") • Native GTK3");
     ui::add_class(lbl_version, "idm-about-sub");
     gtk_label_set_xalign(GTK_LABEL(lbl_version), 0.0f);
     gtk_container_add(GTK_CONTAINER(title_vbox), lbl_version);
