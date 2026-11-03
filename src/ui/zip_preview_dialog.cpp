@@ -1,4 +1,5 @@
 #include "zip_preview_dialog.hpp"
+#include "gtk_util.hpp"
 #include <iomanip>
 #include <sstream>
 #include <filesystem>
@@ -41,7 +42,7 @@ ZipPreviewDialog::~ZipPreviewDialog() {
 }
 
 void ZipPreviewDialog::show() {
-    gtk_window_present(GTK_WINDOW(window_));
+    ui::present(window_);
     if (!current_url_.empty() && entries_.empty()) {
         on_fetch_clicked();
     }
@@ -53,23 +54,23 @@ void ZipPreviewDialog::close() {
         alive_token_->store(false);
     }
     if (window_) {
-        gtk_window_destroy(GTK_WINDOW(window_));
+        gtk_widget_destroy(GTK_WIDGET(window_));
         window_ = nullptr;
     }
 }
 
 void ZipPreviewDialog::setup_ui() {
-    window_ = gtk_window_new();
+    window_ = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     gtk_window_set_title(GTK_WINDOW(window_), "OpenDM - Remote ZIP Content Previewer");
     gtk_window_set_default_size(GTK_WINDOW(window_), 640, 480);
     if (parent_) {
         gtk_window_set_transient_for(GTK_WINDOW(window_), parent_);
     }
 
-    g_signal_connect(window_, "close-request", G_CALLBACK(+[](GtkWindow*, gpointer data) -> gboolean {
+    g_signal_connect(window_, "delete-event", G_CALLBACK(+[](GtkWidget*, GdkEvent*, gpointer data) -> gboolean {
         auto* self = static_cast<ZipPreviewDialog*>(data);
         self->close();
-        return FALSE;
+        return TRUE; // close() already destroyed the window
     }), this);
 
     GtkWidget* vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
@@ -77,46 +78,46 @@ void ZipPreviewDialog::setup_ui() {
     gtk_widget_set_margin_end(vbox, 16);
     gtk_widget_set_margin_top(vbox, 16);
     gtk_widget_set_margin_bottom(vbox, 16);
-    gtk_window_set_child(GTK_WINDOW(window_), vbox);
+    gtk_container_add(GTK_CONTAINER(window_), vbox);
 
     // URL Entry + Fetch button
     GtkWidget* url_hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
-    gtk_box_append(GTK_BOX(vbox), url_hbox);
+    gtk_container_add(GTK_CONTAINER(vbox), url_hbox);
 
     url_entry_ = gtk_entry_new();
     gtk_entry_set_placeholder_text(GTK_ENTRY(url_entry_), "https://example.com/archive.zip");
     if (!current_url_.empty()) {
-        gtk_editable_set_text(GTK_EDITABLE(url_entry_), current_url_.c_str());
+        gtk_entry_set_text(GTK_ENTRY(url_entry_), current_url_.c_str());
     }
     gtk_widget_set_hexpand(url_entry_, TRUE);
-    gtk_box_append(GTK_BOX(url_hbox), url_entry_);
+    gtk_container_add(GTK_CONTAINER(url_hbox), url_entry_);
 
     btn_fetch_ = gtk_button_new_with_label("Inspect Archive");
-    gtk_box_append(GTK_BOX(url_hbox), btn_fetch_);
+    gtk_container_add(GTK_CONTAINER(url_hbox), btn_fetch_);
 
     status_label_ = gtk_label_new("Enter remote ZIP URL to inspect internal files without downloading the archive.");
     gtk_label_set_xalign(GTK_LABEL(status_label_), 0.0f);
-    gtk_box_append(GTK_BOX(vbox), status_label_);
+    gtk_container_add(GTK_CONTAINER(vbox), status_label_);
 
     // Scrolled window for entries
-    GtkWidget* scroll = gtk_scrolled_window_new();
+    GtkWidget* scroll = gtk_scrolled_window_new(nullptr, nullptr);
     gtk_widget_set_vexpand(scroll, TRUE);
-    gtk_box_append(GTK_BOX(vbox), scroll);
+    gtk_container_add(GTK_CONTAINER(vbox), scroll);
 
     files_container_ = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
-    gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(scroll), files_container_);
+    gtk_container_add(GTK_CONTAINER(scroll), files_container_);
 
     // Bottom Action Bar
     GtkWidget* btn_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
     gtk_widget_set_halign(btn_box, GTK_ALIGN_END);
-    gtk_box_append(GTK_BOX(vbox), btn_box);
+    gtk_container_add(GTK_CONTAINER(vbox), btn_box);
 
     btn_extract_ = gtk_button_new_with_label("Extract Selected File");
     gtk_widget_set_sensitive(btn_extract_, FALSE);
-    gtk_box_append(GTK_BOX(btn_box), btn_extract_);
+    gtk_container_add(GTK_CONTAINER(btn_box), btn_extract_);
 
     GtkWidget* btn_close = gtk_button_new_with_label("Close");
-    gtk_box_append(GTK_BOX(btn_box), btn_close);
+    gtk_container_add(GTK_CONTAINER(btn_box), btn_close);
 
     g_signal_connect_swapped(btn_fetch_, "clicked", G_CALLBACK(+[](ZipPreviewDialog* self) {
         self->on_fetch_clicked();
@@ -137,7 +138,7 @@ void ZipPreviewDialog::setup_ui() {
 }
 
 void ZipPreviewDialog::on_fetch_clicked() {
-    const char* text = gtk_editable_get_text(GTK_EDITABLE(url_entry_));
+    const char* text = gtk_entry_get_text(GTK_ENTRY(url_entry_));
     if (!text || strlen(text) == 0) return;
 
     current_url_ = text;
@@ -190,12 +191,7 @@ void ZipPreviewDialog::populate_entries() {
     gtk_label_set_text(GTK_LABEL(status_label_), ss.str().c_str());
 
     // Clear old rows
-    GtkWidget* child = gtk_widget_get_first_child(files_container_);
-    while (child != nullptr) {
-        GtkWidget* next = gtk_widget_get_next_sibling(child);
-        gtk_box_remove(GTK_BOX(files_container_), child);
-        child = next;
-    }
+    ui::clear_container(files_container_);
 
     selected_entry_index_ = -1;
     gtk_widget_set_sensitive(btn_extract_, FALSE);
@@ -208,41 +204,42 @@ void ZipPreviewDialog::populate_entries() {
         gtk_widget_set_margin_end(hbox, 8);
         gtk_widget_set_margin_top(hbox, 4);
         gtk_widget_set_margin_bottom(hbox, 4);
-        gtk_frame_set_child(GTK_FRAME(row), hbox);
+        gtk_container_add(GTK_CONTAINER(row), hbox);
 
         GtkWidget* icon_lbl = gtk_label_new(e.is_directory ? "[DIR]" : "[FILE]");
-        gtk_box_append(GTK_BOX(hbox), icon_lbl);
+        gtk_container_add(GTK_CONTAINER(hbox), icon_lbl);
 
         GtkWidget* fn_lbl = gtk_label_new(e.filename.c_str());
         gtk_label_set_xalign(GTK_LABEL(fn_lbl), 0.0f);
         gtk_label_set_ellipsize(GTK_LABEL(fn_lbl), PANGO_ELLIPSIZE_MIDDLE);
         gtk_widget_set_hexpand(fn_lbl, TRUE);
-        gtk_box_append(GTK_BOX(hbox), fn_lbl);
+        gtk_container_add(GTK_CONTAINER(hbox), fn_lbl);
 
         std::string size_str = format_bytes(e.uncompressed_size);
         if (e.compressed_size > 0 && e.compressed_size != e.uncompressed_size) {
             size_str += " (comp: " + format_bytes(e.compressed_size) + ")";
         }
         GtkWidget* sz_lbl = gtk_label_new(size_str.c_str());
-        gtk_box_append(GTK_BOX(hbox), sz_lbl);
+        gtk_container_add(GTK_CONTAINER(hbox), sz_lbl);
 
-        // Click gesture for row selection
-        g_object_set_data(G_OBJECT(row), "entry_idx", GINT_TO_POINTER(static_cast<int>(i)));
-        GtkGesture* click = gtk_gesture_click_new();
-        g_signal_connect(click, "pressed", G_CALLBACK(+[](GtkGestureClick* g, int n_press, double, double, gpointer user_data) {
+        // Click handler for row selection (frames have no input window in GTK3)
+        GtkWidget* row_click = ui::wrap_clickable(row);
+        g_object_set_data(G_OBJECT(row_click), "entry_idx", GINT_TO_POINTER(static_cast<int>(i)));
+        g_signal_connect(row_click, "button-press-event", G_CALLBACK(+[](GtkWidget* w, GdkEventButton* ev, gpointer user_data) -> gboolean {
+            if (ev->button != 1) return GDK_EVENT_PROPAGATE;
             auto* self = static_cast<ZipPreviewDialog*>(user_data);
-            GtkWidget* w = gtk_event_controller_get_widget(GTK_EVENT_CONTROLLER(g));
             int idx = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(w), "entry_idx"));
             self->selected_entry_index_ = idx;
             gtk_widget_set_sensitive(self->btn_extract_, !self->entries_[idx].is_directory);
-            if (n_press == 2 && !self->entries_[idx].is_directory) {
+            if (ev->type == GDK_2BUTTON_PRESS && !self->entries_[idx].is_directory) {
                 self->on_extract_clicked();
             }
+            return GDK_EVENT_PROPAGATE;
         }), this);
-        gtk_widget_add_controller(row, GTK_EVENT_CONTROLLER(click));
 
-        gtk_box_append(GTK_BOX(files_container_), row);
+        gtk_container_add(GTK_CONTAINER(files_container_), row_click);
     }
+    gtk_widget_show_all(files_container_);
 }
 
 void ZipPreviewDialog::on_extract_clicked() {

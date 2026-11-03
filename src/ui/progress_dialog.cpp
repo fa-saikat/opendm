@@ -1,4 +1,5 @@
 #include "progress_dialog.hpp"
+#include "gtk_util.hpp"
 #include "download_complete_dialog.hpp"
 #include "ui_assets.hpp"
 #include "../core/post_download.hpp"
@@ -84,11 +85,11 @@ ProgressDialog::~ProgressDialog() {
 }
 
 void ProgressDialog::setup_ui() {
-    window_ = gtk_window_new();
+    window_ = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     gtk_window_set_title(GTK_WINDOW(window_), ("OpenDM - " + session_->get_filename()).c_str());
     gtk_window_set_default_size(GTK_WINDOW(window_), 520, 510);
     gtk_window_set_resizable(GTK_WINDOW(window_), TRUE);
-    gtk_widget_add_css_class(window_, "idm-progress-window");
+    ui::add_class(window_, "idm-progress-window");
     if (parent_) {
         gtk_window_set_transient_for(GTK_WINDOW(window_), parent_);
     }
@@ -98,22 +99,32 @@ void ProgressDialog::setup_ui() {
     gtk_widget_set_margin_end(main_vbox, 8);
     gtk_widget_set_margin_top(main_vbox, 8);
     gtk_widget_set_margin_bottom(main_vbox, 8);
-    gtk_window_set_child(GTK_WINDOW(window_), main_vbox);
+    gtk_container_add(GTK_CONTAINER(window_), main_vbox);
 
     // 3 Tabs matching authentic IDM: Download status, Speed Limiter, Options on completion
     GtkWidget* notebook = gtk_notebook_new();
     gtk_widget_set_vexpand(notebook, TRUE);
-    gtk_box_append(GTK_BOX(main_vbox), notebook);
+    gtk_container_add(GTK_CONTAINER(main_vbox), notebook);
 
     setup_status_tab(notebook);
     setup_speed_limiter_tab(notebook);
     setup_options_tab(notebook);
 
-    g_signal_connect(window_, "close-request", G_CALLBACK(+[](GtkWindow*, gpointer data) -> gboolean {
+    g_signal_connect(window_, "delete-event", G_CALLBACK(+[](GtkWidget*, GdkEvent*, gpointer data) -> gboolean {
         auto* self = static_cast<ProgressDialog*>(data);
         self->close();
-        return FALSE;
+        return TRUE; // close() already destroyed the window
     }), this);
+
+    // These widgets have their visibility driven by update_ui() and the details toggle;
+    // keep gtk_widget_show_all() in show() from overriding that state.
+    gtk_widget_show_all(box_details_);
+    for (GtkWidget* w : {box_details_, btn_pause_resume_, btn_cancel_, btn_open_file_, btn_open_folder_}) {
+        gtk_widget_set_no_show_all(w, TRUE);
+    }
+    gtk_widget_set_visible(box_details_, details_expanded_ ? TRUE : FALSE);
+    gtk_widget_set_visible(btn_pause_resume_, TRUE);
+    gtk_widget_set_visible(btn_cancel_, TRUE);
 
     update_ui();
 }
@@ -127,42 +138,42 @@ void ProgressDialog::setup_status_tab(GtkWidget* notebook) {
 
     // 1. Metadata Inset Frame (matching IDM Dialog 363)
     GtkWidget* meta_frame = gtk_frame_new(nullptr);
-    gtk_widget_add_css_class(meta_frame, "idm-metadata-frame");
+    ui::add_class(meta_frame, "idm-metadata-frame");
 
     GtkWidget* meta_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
     gtk_widget_set_margin_start(meta_box, 12);
     gtk_widget_set_margin_end(meta_box, 12);
     gtk_widget_set_margin_top(meta_box, 8);
     gtk_widget_set_margin_bottom(meta_box, 8);
-    gtk_frame_set_child(GTK_FRAME(meta_frame), meta_box);
-    gtk_box_append(GTK_BOX(page_vbox), meta_frame);
+    gtk_container_add(GTK_CONTAINER(meta_frame), meta_box);
+    gtk_container_add(GTK_CONTAINER(page_vbox), meta_frame);
 
     // Full URL row
     label_url_ = gtk_label_new(session_->get_url().c_str());
     gtk_label_set_xalign(GTK_LABEL(label_url_), 0.0f);
     gtk_label_set_selectable(GTK_LABEL(label_url_), TRUE);
     gtk_label_set_ellipsize(GTK_LABEL(label_url_), PANGO_ELLIPSIZE_END);
-    gtk_widget_add_css_class(label_url_, "idm-url-label");
-    gtk_box_append(GTK_BOX(meta_box), label_url_);
+    ui::add_class(label_url_, "idm-url-label");
+    gtk_container_add(GTK_CONTAINER(meta_box), label_url_);
 
     // 2-column info grid
     GtkWidget* grid = gtk_grid_new();
     gtk_grid_set_row_spacing(GTK_GRID(grid), 4);
     gtk_grid_set_column_spacing(GTK_GRID(grid), 16);
-    gtk_widget_add_css_class(grid, "idm-meta-grid");
-    gtk_box_append(GTK_BOX(meta_box), grid);
+    ui::add_class(grid, "idm-meta-grid");
+    gtk_container_add(GTK_CONTAINER(meta_box), grid);
 
     auto add_row = [&](int row, const char* label_txt, GtkWidget** out_lbl, bool is_status = false) {
         GtkWidget* title = gtk_label_new(label_txt);
         gtk_label_set_xalign(GTK_LABEL(title), 0.0f);
-        gtk_widget_add_css_class(title, "idm-meta-title");
+        ui::add_class(title, "idm-meta-title");
         gtk_widget_set_hexpand(title, FALSE);
 
         GtkWidget* val = gtk_label_new("");
         gtk_label_set_xalign(GTK_LABEL(val), 0.0f);
         gtk_label_set_selectable(GTK_LABEL(val), TRUE);
         gtk_widget_set_hexpand(val, TRUE);
-        gtk_widget_add_css_class(val, is_status ? "idm-status-blue" : "idm-meta-val");
+        ui::add_class(val, is_status ? "idm-status-blue" : "idm-meta-val");
 
         gtk_grid_attach(GTK_GRID(grid), title, 0, row, 1, 1);
         gtk_grid_attach(GTK_GRID(grid), val, 1, row, 1, 1);
@@ -180,8 +191,8 @@ void ProgressDialog::setup_status_tab(GtkWidget* notebook) {
     main_progress_bar_ = gtk_progress_bar_new();
     gtk_progress_bar_set_show_text(GTK_PROGRESS_BAR(main_progress_bar_), FALSE);
     gtk_widget_set_size_request(main_progress_bar_, -1, 16);
-    gtk_widget_add_css_class(main_progress_bar_, "idm-main-progress-bar");
-    gtk_box_append(GTK_BOX(page_vbox), main_progress_bar_);
+    ui::add_class(main_progress_bar_, "idm-main-progress-bar");
+    gtk_container_add(GTK_CONTAINER(page_vbox), main_progress_bar_);
 
     // 3. Middle Action Buttons Row (Left: << Hide details, Right: Pause / Cancel / Open / Close)
     GtkWidget* btn_row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
@@ -189,32 +200,32 @@ void ProgressDialog::setup_status_tab(GtkWidget* notebook) {
     gtk_widget_set_margin_bottom(btn_row, 2);
 
     btn_toggle_details_ = gtk_button_new_with_label("<< Hide details");
-    gtk_widget_add_css_class(btn_toggle_details_, "idm-dialog-btn");
-    gtk_widget_add_css_class(btn_toggle_details_, "idm-btn-details");
-    gtk_box_append(GTK_BOX(btn_row), btn_toggle_details_);
+    ui::add_class(btn_toggle_details_, "idm-dialog-btn");
+    ui::add_class(btn_toggle_details_, "idm-btn-details");
+    gtk_container_add(GTK_CONTAINER(btn_row), btn_toggle_details_);
 
     GtkWidget* spacer = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
     gtk_widget_set_hexpand(spacer, TRUE);
-    gtk_box_append(GTK_BOX(btn_row), spacer);
+    gtk_container_add(GTK_CONTAINER(btn_row), spacer);
 
     btn_pause_resume_ = gtk_button_new_with_label("Pause");
     btn_cancel_ = gtk_button_new_with_label("Cancel");
     btn_open_file_ = gtk_button_new_with_label("Open");
     btn_open_folder_ = gtk_button_new_with_label("Open Folder");
 
-    gtk_widget_add_css_class(btn_pause_resume_, "idm-dialog-btn");
-    gtk_widget_add_css_class(btn_cancel_, "idm-dialog-btn");
-    gtk_widget_add_css_class(btn_open_file_, "idm-dialog-btn");
-    gtk_widget_add_css_class(btn_open_folder_, "idm-dialog-btn");
+    ui::add_class(btn_pause_resume_, "idm-dialog-btn");
+    ui::add_class(btn_cancel_, "idm-dialog-btn");
+    ui::add_class(btn_open_file_, "idm-dialog-btn");
+    ui::add_class(btn_open_folder_, "idm-dialog-btn");
 
     gtk_widget_set_visible(btn_open_file_, FALSE);
     gtk_widget_set_visible(btn_open_folder_, FALSE);
 
-    gtk_box_append(GTK_BOX(btn_row), btn_pause_resume_);
-    gtk_box_append(GTK_BOX(btn_row), btn_cancel_);
-    gtk_box_append(GTK_BOX(btn_row), btn_open_file_);
-    gtk_box_append(GTK_BOX(btn_row), btn_open_folder_);
-    gtk_box_append(GTK_BOX(page_vbox), btn_row);
+    gtk_container_add(GTK_CONTAINER(btn_row), btn_pause_resume_);
+    gtk_container_add(GTK_CONTAINER(btn_row), btn_cancel_);
+    gtk_container_add(GTK_CONTAINER(btn_row), btn_open_file_);
+    gtk_container_add(GTK_CONTAINER(btn_row), btn_open_folder_);
+    gtk_container_add(GTK_CONTAINER(page_vbox), btn_row);
 
     g_signal_connect_swapped(btn_toggle_details_, "clicked", G_CALLBACK(+[](ProgressDialog* self) {
         self->on_toggle_details_clicked();
@@ -238,63 +249,68 @@ void ProgressDialog::setup_status_tab(GtkWidget* notebook) {
 
     // 4. Details Section (Start positions & download progress by connections)
     box_details_ = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
-    gtk_box_append(GTK_BOX(page_vbox), box_details_);
+    gtk_container_add(GTK_CONTAINER(page_vbox), box_details_);
 
     GtkWidget* lbl_conns_title = gtk_label_new("Start positions and download progress by connections");
     gtk_label_set_xalign(GTK_LABEL(lbl_conns_title), 0.5f);
-    gtk_widget_add_css_class(lbl_conns_title, "idm-conns-title");
-    gtk_box_append(GTK_BOX(box_details_), lbl_conns_title);
+    ui::add_class(lbl_conns_title, "idm-conns-title");
+    gtk_container_add(GTK_CONTAINER(box_details_), lbl_conns_title);
 
     // Authentic IDM Multi-connection Segmented Visualizer Bar
     visualizer_area_ = gtk_drawing_area_new();
     gtk_widget_set_size_request(visualizer_area_, -1, 18);
     gtk_widget_set_hexpand(visualizer_area_, TRUE);
-    gtk_widget_add_css_class(visualizer_area_, "idm-visualizer-canvas");
-    gtk_drawing_area_set_draw_func(GTK_DRAWING_AREA(visualizer_area_), on_draw_visualizer, this, nullptr);
-    gtk_box_append(GTK_BOX(box_details_), visualizer_area_);
+    ui::add_class(visualizer_area_, "idm-visualizer-canvas");
+    g_signal_connect(visualizer_area_, "draw", G_CALLBACK(+[](GtkWidget* w, cairo_t* cr, gpointer d) -> gboolean {
+        on_draw_visualizer(GTK_DRAWING_AREA(w), cr,
+                           gtk_widget_get_allocated_width(w),
+                           gtk_widget_get_allocated_height(w), d);
+        return FALSE;
+    }), this);
+    gtk_container_add(GTK_CONTAINER(box_details_), visualizer_area_);
 
     // Connection List Table
     GtkWidget* table_frame = gtk_frame_new(nullptr);
-    gtk_widget_add_css_class(table_frame, "idm-table-border-frame");
-    gtk_box_append(GTK_BOX(box_details_), table_frame);
+    ui::add_class(table_frame, "idm-table-border-frame");
+    gtk_container_add(GTK_CONTAINER(box_details_), table_frame);
 
     GtkWidget* table_vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
-    gtk_frame_set_child(GTK_FRAME(table_frame), table_vbox);
+    gtk_container_add(GTK_CONTAINER(table_frame), table_vbox);
 
     // Table Header Row
     GtkWidget* hdr_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
-    gtk_widget_add_css_class(hdr_box, "idm-conns-header");
-    gtk_box_append(GTK_BOX(table_vbox), hdr_box);
+    ui::add_class(hdr_box, "idm-conns-header");
+    gtk_container_add(GTK_CONTAINER(table_vbox), hdr_box);
 
     GtkWidget* h_num = gtk_label_new("N.");
     gtk_label_set_xalign(GTK_LABEL(h_num), 0.0f);
     gtk_widget_set_size_request(h_num, 45, -1);
     gtk_widget_set_margin_start(h_num, 8);
-    gtk_widget_add_css_class(h_num, "idm-conns-hcell");
-    gtk_box_append(GTK_BOX(hdr_box), h_num);
+    ui::add_class(h_num, "idm-conns-hcell");
+    gtk_container_add(GTK_CONTAINER(hdr_box), h_num);
 
     GtkWidget* h_down = gtk_label_new("Downloaded");
     gtk_label_set_xalign(GTK_LABEL(h_down), 0.0f);
     gtk_widget_set_size_request(h_down, 140, -1);
-    gtk_widget_add_css_class(h_down, "idm-conns-hcell");
-    gtk_box_append(GTK_BOX(hdr_box), h_down);
+    ui::add_class(h_down, "idm-conns-hcell");
+    gtk_container_add(GTK_CONTAINER(hdr_box), h_down);
 
     GtkWidget* h_info = gtk_label_new("Info");
     gtk_label_set_xalign(GTK_LABEL(h_info), 0.0f);
     gtk_widget_set_hexpand(h_info, TRUE);
-    gtk_widget_add_css_class(h_info, "idm-conns-hcell");
-    gtk_box_append(GTK_BOX(hdr_box), h_info);
+    ui::add_class(h_info, "idm-conns-hcell");
+    gtk_container_add(GTK_CONTAINER(hdr_box), h_info);
 
     // Scrolled Connection Rows List
-    GtkWidget* scrolled = gtk_scrolled_window_new();
+    GtkWidget* scrolled = gtk_scrolled_window_new(nullptr, nullptr);
     gtk_widget_set_size_request(scrolled, -1, 135);
     gtk_widget_set_vexpand(scrolled, TRUE);
-    gtk_widget_add_css_class(scrolled, "idm-conns-scrolled");
-    gtk_box_append(GTK_BOX(table_vbox), scrolled);
+    ui::add_class(scrolled, "idm-conns-scrolled");
+    gtk_container_add(GTK_CONTAINER(table_vbox), scrolled);
 
     conns_list_box_ = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
-    gtk_widget_add_css_class(conns_list_box_, "idm-conns-table");
-    gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(scrolled), conns_list_box_);
+    ui::add_class(conns_list_box_, "idm-conns-table");
+    gtk_container_add(GTK_CONTAINER(scrolled), conns_list_box_);
 
     GtkWidget* tab_lbl = gtk_label_new("Download status");
     gtk_notebook_append_page(GTK_NOTEBOOK(notebook), page_vbox, tab_lbl);
@@ -308,32 +324,32 @@ void ProgressDialog::setup_speed_limiter_tab(GtkWidget* notebook) {
     gtk_widget_set_margin_bottom(page_vbox, 14);
 
     GtkWidget* frame = gtk_frame_new("Speed Limiter");
-    gtk_widget_add_css_class(frame, "idm-options-frame");
+    ui::add_class(frame, "idm-options-frame");
     GtkWidget* frame_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 12);
     gtk_widget_set_margin_start(frame_box, 14);
     gtk_widget_set_margin_end(frame_box, 14);
     gtk_widget_set_margin_top(frame_box, 14);
     gtk_widget_set_margin_bottom(frame_box, 14);
-    gtk_frame_set_child(GTK_FRAME(frame), frame_box);
-    gtk_box_append(GTK_BOX(page_vbox), frame);
+    gtk_container_add(GTK_CONTAINER(frame), frame_box);
+    gtk_container_add(GTK_CONTAINER(page_vbox), frame);
 
     chk_use_speed_limiter_ = gtk_check_button_new_with_label("Use Speed Limiter");
-    gtk_check_button_set_active(GTK_CHECK_BUTTON(chk_use_speed_limiter_), session_->is_speed_limit_enabled());
-    gtk_box_append(GTK_BOX(frame_box), chk_use_speed_limiter_);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(chk_use_speed_limiter_), session_->is_speed_limit_enabled());
+    gtk_container_add(GTK_CONTAINER(frame_box), chk_use_speed_limiter_);
 
     GtkWidget* spin_row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
     GtkWidget* lbl_spin = gtk_label_new("Maximum download speed:");
-    gtk_box_append(GTK_BOX(spin_row), lbl_spin);
+    gtk_container_add(GTK_CONTAINER(spin_row), lbl_spin);
 
     uint64_t cur_limit = session_->get_speed_limit();
     double init_kb = cur_limit > 0 ? static_cast<double>(cur_limit / 1024) : 500.0;
     spin_speed_limit_ = gtk_spin_button_new_with_range(10.0, 100000.0, 50.0);
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(spin_speed_limit_), init_kb);
-    gtk_box_append(GTK_BOX(spin_row), spin_speed_limit_);
+    gtk_container_add(GTK_CONTAINER(spin_row), spin_speed_limit_);
 
     GtkWidget* lbl_unit = gtk_label_new("KBytes/sec");
-    gtk_box_append(GTK_BOX(spin_row), lbl_unit);
-    gtk_box_append(GTK_BOX(frame_box), spin_row);
+    gtk_container_add(GTK_CONTAINER(spin_row), lbl_unit);
+    gtk_container_add(GTK_CONTAINER(frame_box), spin_row);
 
     g_signal_connect_swapped(chk_use_speed_limiter_, "toggled", G_CALLBACK(+[](ProgressDialog* self) {
         self->on_speed_limiter_toggled();
@@ -355,27 +371,27 @@ void ProgressDialog::setup_options_tab(GtkWidget* notebook) {
     gtk_widget_set_margin_bottom(page_vbox, 14);
 
     GtkWidget* frame = gtk_frame_new("Options on completion");
-    gtk_widget_add_css_class(frame, "idm-options-frame");
+    ui::add_class(frame, "idm-options-frame");
     GtkWidget* frame_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
     gtk_widget_set_margin_start(frame_box, 12);
     gtk_widget_set_margin_end(frame_box, 12);
     gtk_widget_set_margin_top(frame_box, 12);
     gtk_widget_set_margin_bottom(frame_box, 12);
-    gtk_frame_set_child(GTK_FRAME(frame), frame_box);
-    gtk_box_append(GTK_BOX(page_vbox), frame);
+    gtk_container_add(GTK_CONTAINER(frame), frame_box);
+    gtk_container_add(GTK_CONTAINER(page_vbox), frame);
 
     chk_show_complete_ = gtk_check_button_new_with_label("Show \"Download complete\" dialog");
-    gtk_check_button_set_active(GTK_CHECK_BUTTON(chk_show_complete_), TRUE);
-    gtk_box_append(GTK_BOX(frame_box), chk_show_complete_);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(chk_show_complete_), TRUE);
+    gtk_container_add(GTK_CONTAINER(frame_box), chk_show_complete_);
 
     chk_hang_up_ = gtk_check_button_new_with_label("Hang up modem / disconnect when done");
-    gtk_box_append(GTK_BOX(frame_box), chk_hang_up_);
+    gtk_container_add(GTK_CONTAINER(frame_box), chk_hang_up_);
 
     chk_turn_off_ = gtk_check_button_new_with_label("Turn off computer when done");
-    gtk_box_append(GTK_BOX(frame_box), chk_turn_off_);
+    gtk_container_add(GTK_CONTAINER(frame_box), chk_turn_off_);
 
     chk_force_close_ = gtk_check_button_new_with_label("Force processes to close");
-    gtk_box_append(GTK_BOX(frame_box), chk_force_close_);
+    gtk_container_add(GTK_CONTAINER(frame_box), chk_force_close_);
 
     GtkWidget* tab_lbl = gtk_label_new("Options on completion");
     gtk_notebook_append_page(GTK_NOTEBOOK(notebook), page_vbox, tab_lbl);
@@ -464,33 +480,28 @@ void ProgressDialog::update_connection_table(const std::vector<Chunk>& chunks, S
 
     if (chunks.size() != conn_rows_.size()) {
         // Clear and rebuild connection row widgets
-        GtkWidget* child = gtk_widget_get_first_child(conns_list_box_);
-        while (child) {
-            GtkWidget* next = gtk_widget_get_next_sibling(child);
-            gtk_box_remove(GTK_BOX(conns_list_box_), child);
-            child = next;
-        }
+        ui::clear_container(conns_list_box_);
         conn_rows_.clear();
 
         for (size_t i = 0; i < chunks.size(); ++i) {
             GtkWidget* row_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
-            gtk_widget_add_css_class(row_box, "idm-conns-row");
+            ui::add_class(row_box, "idm-conns-row");
             if (i % 2 == 1) {
-                gtk_widget_add_css_class(row_box, "even");
+                ui::add_class(row_box, "even");
             }
 
             GtkWidget* lbl_num = gtk_label_new(std::to_string(i + 1).c_str());
             gtk_label_set_xalign(GTK_LABEL(lbl_num), 0.0f);
             gtk_widget_set_size_request(lbl_num, 45, -1);
             gtk_widget_set_margin_start(lbl_num, 8);
-            gtk_widget_add_css_class(lbl_num, "idm-conns-cell");
-            gtk_box_append(GTK_BOX(row_box), lbl_num);
+            ui::add_class(lbl_num, "idm-conns-cell");
+            gtk_container_add(GTK_CONTAINER(row_box), lbl_num);
 
             GtkWidget* lbl_down = gtk_label_new(format_bytes(chunks[i].downloaded_bytes).c_str());
             gtk_label_set_xalign(GTK_LABEL(lbl_down), 0.0f);
             gtk_widget_set_size_request(lbl_down, 140, -1);
-            gtk_widget_add_css_class(lbl_down, "idm-conns-cell");
-            gtk_box_append(GTK_BOX(row_box), lbl_down);
+            ui::add_class(lbl_down, "idm-conns-cell");
+            gtk_container_add(GTK_CONTAINER(row_box), lbl_down);
 
             std::string info_text = "Receiving data...";
             if (chunks[i].status == ChunkStatus::COMPLETED) {
@@ -502,12 +513,13 @@ void ProgressDialog::update_connection_table(const std::vector<Chunk>& chunks, S
             GtkWidget* lbl_info = gtk_label_new(info_text.c_str());
             gtk_label_set_xalign(GTK_LABEL(lbl_info), 0.0f);
             gtk_widget_set_hexpand(lbl_info, TRUE);
-            gtk_widget_add_css_class(lbl_info, "idm-conns-cell");
-            gtk_box_append(GTK_BOX(row_box), lbl_info);
+            ui::add_class(lbl_info, "idm-conns-cell");
+            gtk_container_add(GTK_CONTAINER(row_box), lbl_info);
 
-            gtk_box_append(GTK_BOX(conns_list_box_), row_box);
+            gtk_container_add(GTK_CONTAINER(conns_list_box_), row_box);
             conn_rows_.push_back({row_box, lbl_num, lbl_down, lbl_info});
         }
+        gtk_widget_show_all(conns_list_box_);
     } else {
         // Fast in-place label update
         for (size_t i = 0; i < chunks.size(); ++i) {
@@ -531,7 +543,7 @@ void ProgressDialog::update_connection_table(const std::vector<Chunk>& chunks, S
 }
 
 void ProgressDialog::show() {
-    gtk_window_present(GTK_WINDOW(window_));
+    ui::present(window_);
 }
 
 void ProgressDialog::close() {
@@ -540,44 +552,14 @@ void ProgressDialog::close() {
         timer_id_ = 0;
     }
     if (window_) {
-        gtk_window_destroy(GTK_WINDOW(window_));
+        gtk_widget_destroy(GTK_WIDGET(window_));
         window_ = nullptr;
     }
 }
 
 bool ProgressDialog::save_snapshot(const std::string& filename) {
     if (!window_) return false;
-
-    GtkWidget* target = gtk_window_get_child(GTK_WINDOW(window_));
-    if (!target) target = window_;
-
-    int w = gtk_widget_get_width(target);
-    int h = gtk_widget_get_height(target);
-    if (w <= 0) w = 520;
-    if (h <= 0) h = 460;
-
-    GdkPaintable* paintable = gtk_widget_paintable_new(target);
-    GtkSnapshot* snapshot = gtk_snapshot_new();
-    gdk_paintable_snapshot(paintable, GDK_SNAPSHOT(snapshot), static_cast<double>(w), static_cast<double>(h));
-    GskRenderNode* node = gtk_snapshot_free_to_node(snapshot);
-
-    bool ok = false;
-    if (node) {
-        GtkNative* native = gtk_widget_get_native(target);
-        GskRenderer* renderer = native ? gtk_native_get_renderer(native) : nullptr;
-        if (renderer && gsk_renderer_is_realized(renderer)) {
-            graphene_rect_t bounds;
-            graphene_rect_init(&bounds, 0.0f, 0.0f, (float)w, (float)h);
-            GdkTexture* texture = gsk_renderer_render_texture(renderer, node, &bounds);
-            if (texture) {
-                ok = gdk_texture_save_to_png(texture, filename.c_str());
-                g_object_unref(texture);
-            }
-        }
-        gsk_render_node_unref(node);
-    }
-    g_object_unref(paintable);
-    return ok;
+    return ui::save_widget_png(window_, filename, 520, 460);
 }
 
 gboolean ProgressDialog::on_tick_update(gpointer user_data) {
@@ -639,12 +621,12 @@ void ProgressDialog::update_ui() {
 
         if (!completion_dialog_shown_) {
             completion_dialog_shown_ = true;
-            if (chk_show_complete_ && gtk_check_button_get_active(GTK_CHECK_BUTTON(chk_show_complete_))) {
+            if (chk_show_complete_ && gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(chk_show_complete_))) {
                 DownloadCompleteDialog::show(parent_ ? parent_ : GTK_WINDOW(window_), session_);
             }
         }
 
-        if (chk_turn_off_ && gtk_check_button_get_active(GTK_CHECK_BUTTON(chk_turn_off_))) {
+        if (chk_turn_off_ && gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(chk_turn_off_))) {
             PostDownloadManager::instance().execute_completion_action(CompletionAction::SHUTDOWN_SYSTEM);
         }
     } else {
@@ -669,9 +651,9 @@ void ProgressDialog::on_toggle_details_clicked() {
 
     if (window_) {
         if (details_expanded_) {
-            gtk_window_set_default_size(GTK_WINDOW(window_), 520, 510);
+            gtk_window_resize(GTK_WINDOW(window_), 520, 510);
         } else {
-            gtk_window_set_default_size(GTK_WINDOW(window_), 520, 260);
+            gtk_window_resize(GTK_WINDOW(window_), 520, 260);
         }
     }
 }
@@ -709,7 +691,7 @@ void ProgressDialog::on_open_folder_clicked() {
 
 void ProgressDialog::on_speed_limiter_toggled() {
     if (!session_ || !chk_use_speed_limiter_) return;
-    bool active = gtk_check_button_get_active(GTK_CHECK_BUTTON(chk_use_speed_limiter_));
+    bool active = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(chk_use_speed_limiter_));
     session_->enable_speed_limit(active);
 }
 

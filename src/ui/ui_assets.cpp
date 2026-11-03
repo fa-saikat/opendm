@@ -1,4 +1,5 @@
 #include "ui_assets.hpp"
+#include "gtk_util.hpp"
 #include <filesystem>
 #include <iostream>
 #include <vector>
@@ -60,16 +61,22 @@ GtkWidget* UiAssets::create_image(
     if (name_or_file.find('/') != std::string::npos || name_or_file.find(".png") != std::string::npos || name_or_file.find(".svg") != std::string::npos) {
         std::string full_path = get_path(name_or_file);
         if (!full_path.empty()) {
-            GtkWidget* img = gtk_image_new_from_file(full_path.c_str());
+            // GTK3 only applies pixel-size to themed icons, so scale file assets on load.
             if (width > 0) {
-                gtk_image_set_pixel_size(GTK_IMAGE(img), width);
+                int h = (height > 0) ? height : width;
+                GdkPixbuf* pb = gdk_pixbuf_new_from_file_at_scale(full_path.c_str(), width, h, TRUE, nullptr);
+                if (pb) {
+                    GtkWidget* img = gtk_image_new_from_pixbuf(pb);
+                    g_object_unref(pb);
+                    return img;
+                }
             }
-            return img;
+            return gtk_image_new_from_file(full_path.c_str());
         }
     }
 
     // 2. Otherwise treat name_or_file as GTK icon name
-    GtkWidget* img = gtk_image_new_from_icon_name(name_or_file.c_str());
+    GtkWidget* img = gtk_image_new_from_icon_name(name_or_file.c_str(), GTK_ICON_SIZE_BUTTON);
     gtk_image_set_pixel_size(GTK_IMAGE(img), target_size);
     return img;
 }
@@ -84,10 +91,10 @@ GtkWidget* UiAssets::create_toolbar_button(
     bool has_dropdown) {
 
     GtkWidget* btn = gtk_button_new();
-    gtk_widget_add_css_class(btn, "flat");
-    gtk_widget_add_css_class(btn, "idm-toolbar-btn");
+    ui::add_class(btn, "flat");
+    ui::add_class(btn, "idm-toolbar-btn");
     if (is_primary) {
-        gtk_widget_add_css_class(btn, "suggested-action");
+        ui::add_class(btn, "suggested-action");
     }
     gtk_widget_set_tooltip_text(btn, tooltip_text.c_str());
 
@@ -97,23 +104,23 @@ GtkWidget* UiAssets::create_toolbar_button(
 
     GtkWidget* img = create_image(icon_name, 22, 22, "document-save-symbolic");
     gtk_widget_set_halign(img, GTK_ALIGN_CENTER);
-    gtk_box_append(GTK_BOX(box), img);
+    gtk_container_add(GTK_CONTAINER(box), img);
 
     GtkWidget* lbl_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
     gtk_widget_set_halign(lbl_box, GTK_ALIGN_CENTER);
 
     GtkWidget* lbl = gtk_label_new(label_text.c_str());
-    gtk_widget_add_css_class(lbl, "idm-toolbar-label");
-    gtk_box_append(GTK_BOX(lbl_box), lbl);
+    ui::add_class(lbl, "idm-toolbar-label");
+    gtk_container_add(GTK_CONTAINER(lbl_box), lbl);
 
     if (has_dropdown) {
         GtkWidget* chevron = gtk_label_new("▾");
-        gtk_widget_add_css_class(chevron, "idm-toolbar-chevron");
-        gtk_box_append(GTK_BOX(lbl_box), chevron);
+        ui::add_class(chevron, "idm-toolbar-chevron");
+        gtk_container_add(GTK_CONTAINER(lbl_box), chevron);
     }
 
-    gtk_box_append(GTK_BOX(box), lbl_box);
-    gtk_button_set_child(GTK_BUTTON(btn), box);
+    gtk_container_add(GTK_CONTAINER(box), lbl_box);
+    gtk_container_add(GTK_CONTAINER(btn), box);
 
     if (callback) {
         g_signal_connect(btn, "clicked", callback, user_data);
@@ -162,7 +169,12 @@ void UiAssets::apply_theme() {
 
     GtkCssProvider* provider = gtk_css_provider_new();
     if (!css_path.empty()) {
-        gtk_css_provider_load_from_path(provider, css_path.c_str());
+        GError* css_err = nullptr;
+        if (!gtk_css_provider_load_from_path(provider, css_path.c_str(), &css_err)) {
+            std::cerr << "OpenDM: failed to load stylesheet " << css_path << ": "
+                      << (css_err ? css_err->message : "unknown error") << std::endl;
+        }
+        if (css_err) g_error_free(css_err);
     } else {
         // Fallback embedded minimal styling to ensure zero unstyled states
         static const char* fallback_css = R"(
@@ -173,13 +185,13 @@ void UiAssets::apply_theme() {
             .idm-tree-row.selected { background-color: #3584e4; color: #fff; border-radius: 6px; }
             .idm-table-header { background-color: #2a2a2a; }
             .idm-col-header-box { padding: 6px 8px; }
-            .idm-col-header { font-size: 11px; font-weight: 600; color: #9a9996; text-transform: uppercase; }
+            .idm-col-header { font-size: 11px; font-weight: 600; color: #9a9996; }
         )";
-        gtk_css_provider_load_from_string(provider, fallback_css);
+        gtk_css_provider_load_from_data(provider, fallback_css, -1, nullptr);
     }
 
-    gtk_style_context_add_provider_for_display(
-        gdk_display_get_default(),
+    gtk_style_context_add_provider_for_screen(
+        gdk_screen_get_default(),
         GTK_STYLE_PROVIDER(provider),
         GTK_STYLE_PROVIDER_PRIORITY_USER + 20);
     g_object_unref(provider);

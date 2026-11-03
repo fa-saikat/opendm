@@ -1,4 +1,5 @@
 #include "download_complete_dialog.hpp"
+#include "gtk_util.hpp"
 #include <filesystem>
 #include <sstream>
 #include <iomanip>
@@ -33,7 +34,7 @@ DownloadCompleteDialog::DownloadCompleteDialog(GtkWindow* parent, std::shared_pt
     : parent_(parent), session_(std::move(session)) {}
 
 void DownloadCompleteDialog::setup_ui() {
-    window_ = gtk_window_new();
+    window_ = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     gtk_window_set_title(GTK_WINDOW(window_), "Download Complete");
     gtk_window_set_default_size(GTK_WINDOW(window_), 420, 190);
     gtk_window_set_resizable(GTK_WINDOW(window_), FALSE);
@@ -50,13 +51,13 @@ void DownloadCompleteDialog::setup_ui() {
     gtk_widget_set_margin_end(main_vbox, 16);
     gtk_widget_set_margin_top(main_vbox, 16);
     gtk_widget_set_margin_bottom(main_vbox, 16);
-    gtk_window_set_child(GTK_WINDOW(window_), main_vbox);
+    gtk_container_add(GTK_CONTAINER(window_), main_vbox);
 
     // Header with icon and filename
     GtkWidget* header_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 12);
-    GtkWidget* icon = gtk_image_new_from_icon_name("document-save-symbolic");
+    GtkWidget* icon = gtk_image_new_from_icon_name("document-save-symbolic", GTK_ICON_SIZE_DIALOG);
     gtk_image_set_pixel_size(GTK_IMAGE(icon), 36);
-    gtk_box_append(GTK_BOX(header_box), icon);
+    gtk_container_add(GTK_CONTAINER(header_box), icon);
 
     GtkWidget* info_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 4);
     gtk_widget_set_hexpand(info_box, TRUE);
@@ -70,22 +71,22 @@ void DownloadCompleteDialog::setup_ui() {
     gtk_label_set_markup(GTK_LABEL(lbl_fn), markup.c_str());
     gtk_label_set_xalign(GTK_LABEL(lbl_fn), 0.0f);
     gtk_label_set_ellipsize(GTK_LABEL(lbl_fn), PANGO_ELLIPSIZE_MIDDLE);
-    gtk_box_append(GTK_BOX(info_box), lbl_fn);
+    gtk_container_add(GTK_CONTAINER(info_box), lbl_fn);
 
     std::string details = "Size: " + format_size(sz);
     GtkWidget* lbl_size = gtk_label_new(details.c_str());
     gtk_label_set_xalign(GTK_LABEL(lbl_size), 0.0f);
-    gtk_box_append(GTK_BOX(info_box), lbl_size);
+    gtk_container_add(GTK_CONTAINER(info_box), lbl_size);
 
     GtkWidget* lbl_path = gtk_label_new(dest.c_str());
     gtk_label_set_xalign(GTK_LABEL(lbl_path), 0.0f);
     gtk_label_set_ellipsize(GTK_LABEL(lbl_path), PANGO_ELLIPSIZE_START);
     gtk_label_set_selectable(GTK_LABEL(lbl_path), TRUE);
-    gtk_widget_add_css_class(lbl_path, "dim-label");
-    gtk_box_append(GTK_BOX(info_box), lbl_path);
+    ui::add_class(lbl_path, "dim-label");
+    gtk_container_add(GTK_CONTAINER(info_box), lbl_path);
 
-    gtk_box_append(GTK_BOX(header_box), info_box);
-    gtk_box_append(GTK_BOX(main_vbox), header_box);
+    gtk_container_add(GTK_CONTAINER(header_box), info_box);
+    gtk_container_add(GTK_CONTAINER(main_vbox), header_box);
 
     // Button actions
     GtkWidget* btn_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
@@ -96,10 +97,10 @@ void DownloadCompleteDialog::setup_ui() {
     GtkWidget* btn_folder = gtk_button_new_with_label("Open Folder");
     GtkWidget* btn_close = gtk_button_new_with_label("Close");
 
-    gtk_box_append(GTK_BOX(btn_box), btn_open);
-    gtk_box_append(GTK_BOX(btn_box), btn_folder);
-    gtk_box_append(GTK_BOX(btn_box), btn_close);
-    gtk_box_append(GTK_BOX(main_vbox), btn_box);
+    gtk_container_add(GTK_CONTAINER(btn_box), btn_open);
+    gtk_container_add(GTK_CONTAINER(btn_box), btn_folder);
+    gtk_container_add(GTK_CONTAINER(btn_box), btn_close);
+    gtk_container_add(GTK_CONTAINER(main_vbox), btn_box);
 
     g_signal_connect_swapped(btn_open, "clicked", G_CALLBACK(+[](DownloadCompleteDialog* self) {
         self->on_open_file();
@@ -113,7 +114,7 @@ void DownloadCompleteDialog::setup_ui() {
         self->close();
     }), this);
 
-    gtk_window_present(GTK_WINDOW(window_));
+    ui::present(window_);
 }
 
 void DownloadCompleteDialog::on_open_file() {
@@ -137,7 +138,7 @@ void DownloadCompleteDialog::on_open_folder() {
 
 void DownloadCompleteDialog::close() {
     if (window_) {
-        gtk_window_destroy(GTK_WINDOW(window_));
+        gtk_widget_destroy(GTK_WIDGET(window_));
         window_ = nullptr;
     }
 }

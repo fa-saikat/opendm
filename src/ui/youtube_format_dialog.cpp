@@ -1,4 +1,5 @@
 #include "youtube_format_dialog.hpp"
+#include "gtk_util.hpp"
 #include "ui_assets.hpp"
 #include <filesystem>
 #include <algorithm>
@@ -131,7 +132,7 @@ void YouTubeFormatDialog::build_quality_options() {
 }
 
 void YouTubeFormatDialog::setup_ui() {
-    dialog_ = gtk_window_new();
+    dialog_ = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     gtk_window_set_title(GTK_WINDOW(dialog_), "OpenDM - Download YouTube Video");
     gtk_window_set_modal(GTK_WINDOW(dialog_), TRUE);
     if (parent_) {
@@ -145,44 +146,44 @@ void YouTubeFormatDialog::setup_ui() {
     gtk_widget_set_margin_end(main_vbox, 18);
     gtk_widget_set_margin_top(main_vbox, 16);
     gtk_widget_set_margin_bottom(main_vbox, 16);
-    gtk_window_set_child(GTK_WINDOW(dialog_), main_vbox);
+    gtk_container_add(GTK_CONTAINER(dialog_), main_vbox);
 
     // Header banner with IDM Video icon and metadata
     GtkWidget* header_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 12);
     GtkWidget* icon = UiAssets::create_image("cat_video_32.png", 40, 40, "video-x-generic");
-    gtk_box_append(GTK_BOX(header_box), icon);
+    gtk_container_add(GTK_CONTAINER(header_box), icon);
 
     GtkWidget* meta_vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 3);
     GtkWidget* lbl_title = gtk_label_new(nullptr);
     std::string title_markup = "<b>" + info_.title + "</b>";
     gtk_label_set_markup(GTK_LABEL(lbl_title), title_markup.c_str());
     gtk_label_set_xalign(GTK_LABEL(lbl_title), 0.0f);
-    gtk_label_set_wrap(GTK_LABEL(lbl_title), TRUE);
+    gtk_label_set_line_wrap(GTK_LABEL(lbl_title), TRUE);
     gtk_label_set_max_width_chars(GTK_LABEL(lbl_title), 50);
     gtk_label_set_lines(GTK_LABEL(lbl_title), 2);
     gtk_label_set_ellipsize(GTK_LABEL(lbl_title), PANGO_ELLIPSIZE_END);
-    gtk_box_append(GTK_BOX(meta_vbox), lbl_title);
+    gtk_container_add(GTK_CONTAINER(meta_vbox), lbl_title);
 
     std::string meta_line = "Channel: " + (info_.author.empty() ? "YouTube" : info_.author) +
                             "  |  Duration: " + YouTubeEngine::format_duration(info_.duration_seconds) +
                             "  |  Client: " + (info_.client_used.empty() ? "ANDROID" : info_.client_used);
     GtkWidget* lbl_sub = gtk_label_new(meta_line.c_str());
-    gtk_widget_add_css_class(lbl_sub, "dim-label");
+    ui::add_class(lbl_sub, "dim-label");
     gtk_label_set_xalign(GTK_LABEL(lbl_sub), 0.0f);
-    gtk_box_append(GTK_BOX(meta_vbox), lbl_sub);
+    gtk_container_add(GTK_CONTAINER(meta_vbox), lbl_sub);
 
-    gtk_box_append(GTK_BOX(header_box), meta_vbox);
-    gtk_box_append(GTK_BOX(main_vbox), header_box);
+    gtk_container_add(GTK_CONTAINER(header_box), meta_vbox);
+    gtk_container_add(GTK_CONTAINER(main_vbox), header_box);
 
     // Separator
     GtkWidget* sep = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
-    gtk_box_append(GTK_BOX(main_vbox), sep);
+    gtk_container_add(GTK_CONTAINER(main_vbox), sep);
 
     // Settings grid
     GtkWidget* grid = gtk_grid_new();
     gtk_grid_set_row_spacing(GTK_GRID(grid), 10);
     gtk_grid_set_column_spacing(GTK_GRID(grid), 12);
-    gtk_box_append(GTK_BOX(main_vbox), grid);
+    gtk_container_add(GTK_CONTAINER(main_vbox), grid);
 
     // 1. Quality dropdown
     GtkWidget* lbl_q = gtk_label_new("Quality / Format:");
@@ -219,7 +220,7 @@ void YouTubeFormatDialog::setup_ui() {
 
     entry_filename_ = gtk_entry_new();
     gtk_widget_set_hexpand(entry_filename_, TRUE);
-    gtk_editable_set_text(GTK_EDITABLE(entry_filename_), init_fname.c_str());
+    gtk_entry_set_text(GTK_ENTRY(entry_filename_), init_fname.c_str());
     gtk_grid_attach(GTK_GRID(grid), entry_filename_, 1, 2, 2, 1);
 
     // 4. Save Folder entry + Browse button
@@ -231,7 +232,7 @@ void YouTubeFormatDialog::setup_ui() {
     gtk_widget_set_hexpand(entry_dir_, TRUE);
     std::string default_dir = DownloadInfoDialog::load_category_dir("Video");
     if (default_dir.empty()) default_dir = get_default_downloads_folder();
-    gtk_editable_set_text(GTK_EDITABLE(entry_dir_), default_dir.c_str());
+    gtk_entry_set_text(GTK_ENTRY(entry_dir_), default_dir.c_str());
     gtk_grid_attach(GTK_GRID(grid), entry_dir_, 1, 3, 1, 1);
 
     GtkWidget* btn_browse = gtk_button_new_with_label("Browse...");
@@ -243,7 +244,7 @@ void YouTubeFormatDialog::setup_ui() {
 
     // 5. Options: Start immediately
     chk_start_now_ = gtk_check_button_new_with_label("Start download immediately");
-    gtk_check_button_set_active(GTK_CHECK_BUTTON(chk_start_now_), TRUE);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(chk_start_now_), TRUE);
     gtk_grid_attach(GTK_GRID(grid), chk_start_now_, 0, 4, 3, 1);
 
     // Handle combo quality selection change
@@ -257,17 +258,17 @@ void YouTubeFormatDialog::setup_ui() {
     gtk_widget_set_margin_top(btn_box, 10);
 
     GtkWidget* btn_download = gtk_button_new_with_label("Download");
-    gtk_widget_add_css_class(btn_download, "suggested-action");
+    ui::add_class(btn_download, "suggested-action");
     GtkWidget* btn_later = gtk_button_new_with_label("Download Later");
     GtkWidget* btn_cancel = gtk_button_new_with_label("Cancel");
 
-    gtk_box_append(GTK_BOX(btn_box), btn_download);
-    gtk_box_append(GTK_BOX(btn_box), btn_later);
-    gtk_box_append(GTK_BOX(btn_box), btn_cancel);
-    gtk_box_append(GTK_BOX(main_vbox), btn_box);
+    gtk_container_add(GTK_CONTAINER(btn_box), btn_download);
+    gtk_container_add(GTK_CONTAINER(btn_box), btn_later);
+    gtk_container_add(GTK_CONTAINER(btn_box), btn_cancel);
+    gtk_container_add(GTK_CONTAINER(main_vbox), btn_box);
 
     g_signal_connect_swapped(btn_download, "clicked", G_CALLBACK(+[](YouTubeFormatDialog* self) {
-        bool start_now = gtk_check_button_get_active(GTK_CHECK_BUTTON(self->chk_start_now_));
+        bool start_now = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(self->chk_start_now_));
         self->on_action_clicked(start_now ? DownloadInfoAction::START_NOW : DownloadInfoAction::DOWNLOAD_LATER);
     }), this);
 
@@ -279,7 +280,7 @@ void YouTubeFormatDialog::setup_ui() {
         self->on_action_clicked(DownloadInfoAction::CANCEL);
     }), this);
 
-    gtk_window_present(GTK_WINDOW(dialog_));
+    ui::present(dialog_);
 }
 
 void YouTubeFormatDialog::on_quality_changed() {
@@ -295,22 +296,22 @@ void YouTubeFormatDialog::on_quality_changed() {
     }
 
     // Update extension in filename entry
-    std::string cur_name = gtk_editable_get_text(GTK_EDITABLE(entry_filename_));
+    std::string cur_name = gtk_entry_get_text(GTK_ENTRY(entry_filename_));
     size_t dot = cur_name.find_last_of('.');
     std::string stem = (dot != std::string::npos) ? cur_name.substr(0, dot) : cur_name;
     std::string new_name = stem + "." + opt.container;
-    gtk_editable_set_text(GTK_EDITABLE(entry_filename_), new_name.c_str());
+    gtk_entry_set_text(GTK_ENTRY(entry_filename_), new_name.c_str());
 
     // Switch default folder to Music if audio only, or Video if video
     if (opt.is_audio_only) {
         std::string music_dir = DownloadInfoDialog::load_category_dir("Music");
         if (!music_dir.empty()) {
-            gtk_editable_set_text(GTK_EDITABLE(entry_dir_), music_dir.c_str());
+            gtk_entry_set_text(GTK_ENTRY(entry_dir_), music_dir.c_str());
         }
     } else {
         std::string video_dir = DownloadInfoDialog::load_category_dir("Video");
         if (!video_dir.empty()) {
-            gtk_editable_set_text(GTK_EDITABLE(entry_dir_), video_dir.c_str());
+            gtk_entry_set_text(GTK_ENTRY(entry_dir_), video_dir.c_str());
         }
     }
 }
@@ -324,11 +325,9 @@ void YouTubeFormatDialog::on_browse_clicked() {
         "_Cancel"
     );
 
-    std::string cur_dir = gtk_editable_get_text(GTK_EDITABLE(entry_dir_));
+    std::string cur_dir = gtk_entry_get_text(GTK_ENTRY(entry_dir_));
     if (!cur_dir.empty() && fs::exists(cur_dir)) {
-        GFile* folder = g_file_new_for_path(cur_dir.c_str());
-        gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(native), folder, nullptr);
-        g_object_unref(folder);
+        gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(native), cur_dir.c_str());
     }
 
     g_signal_connect(native, "response", G_CALLBACK(+[](GtkNativeDialog* dlg, int response_id, gpointer user_data) {
@@ -340,7 +339,7 @@ void YouTubeFormatDialog::on_browse_clicked() {
                 if (chosen_path) {
                     auto* self = static_cast<YouTubeFormatDialog*>(user_data);
                     if (self && !self->destroyed_) {
-                        gtk_editable_set_text(GTK_EDITABLE(self->entry_dir_), chosen_path);
+                        gtk_entry_set_text(GTK_ENTRY(self->entry_dir_), chosen_path);
                     }
                     g_free(chosen_path);
                 }
@@ -355,20 +354,20 @@ void YouTubeFormatDialog::on_browse_clicked() {
 
 void YouTubeFormatDialog::on_action_clicked(DownloadInfoAction action) {
     if (action == DownloadInfoAction::CANCEL) {
-        gtk_window_destroy(GTK_WINDOW(dialog_));
+        gtk_widget_destroy(GTK_WIDGET(dialog_));
         delete this;
         return;
     }
 
     if (selected_option_index_ < 0 || selected_option_index_ >= static_cast<int>(options_.size())) {
-        gtk_window_destroy(GTK_WINDOW(dialog_));
+        gtk_widget_destroy(GTK_WIDGET(dialog_));
         delete this;
         return;
     }
 
     const auto& opt = options_[selected_option_index_];
-    std::string chosen_dir = gtk_editable_get_text(GTK_EDITABLE(entry_dir_));
-    std::string chosen_fname = gtk_editable_get_text(GTK_EDITABLE(entry_filename_));
+    std::string chosen_dir = gtk_entry_get_text(GTK_ENTRY(entry_dir_));
+    std::string chosen_fname = gtk_entry_get_text(GTK_ENTRY(entry_filename_));
     if (chosen_fname.empty()) {
         chosen_fname = "video." + opt.container;
     }
@@ -393,7 +392,7 @@ void YouTubeFormatDialog::on_action_clicked(DownloadInfoAction action) {
         callback_(action, prompt);
     }
 
-    gtk_window_destroy(GTK_WINDOW(dialog_));
+    gtk_widget_destroy(GTK_WIDGET(dialog_));
     delete this;
 }
 

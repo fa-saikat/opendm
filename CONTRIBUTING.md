@@ -41,7 +41,7 @@ Install the necessary build dependencies (Debian/Ubuntu example):
 ```bash
 sudo apt-get update
 sudo apt-get install -y cmake ninja-build g++ pkg-config \
-    libgtk-4-dev libcurl4-openssl-dev zlib1g-dev libssl-dev \
+    libgtk-3-dev libcurl4-openssl-dev zlib1g-dev libssl-dev \
     nlohmann-json3-dev
 ```
 
@@ -71,7 +71,7 @@ git checkout -b feature/your-feature-name
 
 ### 5. Coding Standards
 * **C++ Standard**: Modern C++20. Use RAII, smart pointers, atomic primitives, and thread-safe locking disciplines.
-* **GUI Framework**: Native GTK4 (avoid deprecated GTK3 APIs).
+* **GUI Framework**: Native GTK3 (>= 3.22). Avoid APIs deprecated within GTK3; shared helpers live in `src/ui/gtk_util.hpp`.
 * **Code Formatting**: Clean, consistent indentation and descriptive symbol naming.
 * **Tone & Aesthetics**: Zero AI-slop emojis in code, commits, or user interface dialogs. OpenDM preserves authentic, professional desktop application aesthetics.
 * **Documentation**: Document rationale for complex networking and concurrency logic.

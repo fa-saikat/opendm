@@ -1,4 +1,5 @@
 #include "properties_dialog.hpp"
+#include "gtk_util.hpp"
 #include <filesystem>
 #include <sstream>
 #include <iomanip>
@@ -46,7 +47,7 @@ PropertiesDialog::PropertiesDialog(GtkWindow* parent, std::shared_ptr<DownloadSe
     : parent_(parent), session_(std::move(session)) {}
 
 void PropertiesDialog::setup_ui() {
-    window_ = gtk_window_new();
+    window_ = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     std::string title = "Download Properties - " + session_->get_filename();
     gtk_window_set_title(GTK_WINDOW(window_), title.c_str());
     gtk_window_set_default_size(GTK_WINDOW(window_), 520, 360);
@@ -63,18 +64,18 @@ void PropertiesDialog::setup_ui() {
     gtk_widget_set_margin_end(main_vbox, 16);
     gtk_widget_set_margin_top(main_vbox, 16);
     gtk_widget_set_margin_bottom(main_vbox, 16);
-    gtk_window_set_child(GTK_WINDOW(window_), main_vbox);
+    gtk_container_add(GTK_CONTAINER(window_), main_vbox);
 
     GtkWidget* grid = gtk_grid_new();
     gtk_grid_set_row_spacing(GTK_GRID(grid), 8);
     gtk_grid_set_column_spacing(GTK_GRID(grid), 14);
-    gtk_box_append(GTK_BOX(main_vbox), grid);
+    gtk_container_add(GTK_CONTAINER(main_vbox), grid);
 
     int row = 0;
     auto add_prop = [&](const char* label_text, const std::string& val_text) {
         GtkWidget* lbl = gtk_label_new(label_text);
         gtk_label_set_xalign(GTK_LABEL(lbl), 0.0f);
-        gtk_widget_add_css_class(lbl, "bold-label");
+        ui::add_class(lbl, "bold-label");
         gtk_grid_attach(GTK_GRID(grid), lbl, 0, row, 1, 1);
 
         GtkWidget* val = gtk_label_new(val_text.c_str());
@@ -116,9 +117,9 @@ void PropertiesDialog::setup_ui() {
     GtkWidget* btn_folder = gtk_button_new_with_label("Open Folder");
     GtkWidget* btn_close = gtk_button_new_with_label("Close");
 
-    gtk_box_append(GTK_BOX(btn_box), btn_folder);
-    gtk_box_append(GTK_BOX(btn_box), btn_close);
-    gtk_box_append(GTK_BOX(main_vbox), btn_box);
+    gtk_container_add(GTK_CONTAINER(btn_box), btn_folder);
+    gtk_container_add(GTK_CONTAINER(btn_box), btn_close);
+    gtk_container_add(GTK_CONTAINER(main_vbox), btn_box);
 
     g_signal_connect_swapped(btn_folder, "clicked", G_CALLBACK(+[](PropertiesDialog* self) {
         if (self->session_) {
@@ -134,12 +135,12 @@ void PropertiesDialog::setup_ui() {
         self->close();
     }), this);
 
-    gtk_window_present(GTK_WINDOW(window_));
+    ui::present(window_);
 }
 
 void PropertiesDialog::close() {
     if (window_) {
-        gtk_window_destroy(GTK_WINDOW(window_));
+        gtk_widget_destroy(GTK_WIDGET(window_));
         window_ = nullptr;
     }
 }

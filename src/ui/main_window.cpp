@@ -1,4 +1,5 @@
 #include "main_window.hpp"
+#include "gtk_util.hpp"
 #include "progress_dialog.hpp"
 #include "properties_dialog.hpp"
 #include "download_complete_dialog.hpp"
@@ -109,65 +110,19 @@ MainWindow::~MainWindow() {
 }
 
 void MainWindow::present() {
-    gtk_window_present(GTK_WINDOW(window_));
+    ui::present(window_);
 }
 
 bool MainWindow::save_snapshot(const std::string& filename) {
-    if (!window_) {
-        std::cerr << "save_snapshot: window_ is null" << std::endl;
-        return false;
-    }
-
-    GtkWidget* target = gtk_window_get_child(GTK_WINDOW(window_));
-    if (!target) target = window_;
-
-    GdkPaintable* paintable = gtk_widget_paintable_new(target);
-    int w = gtk_widget_get_width(target);
-    int h = gtk_widget_get_height(target);
-    if (w <= 0) w = 980;
-    if (h <= 0) h = 560;
-
-    std::cerr << "save_snapshot: widget size is " << w << "x" << h << std::endl;
-
-    GtkSnapshot* snapshot = gtk_snapshot_new();
-    gdk_paintable_snapshot(paintable, GDK_SNAPSHOT(snapshot), static_cast<double>(w), static_cast<double>(h));
-    GskRenderNode* node = gtk_snapshot_to_node(snapshot);
-    if (!node) {
-        node = gtk_snapshot_free_to_node(snapshot);
-    }
-
-    bool ok = false;
-    if (node) {
-        GtkNative* native = gtk_widget_get_native(target);
-        GskRenderer* renderer = native ? gtk_native_get_renderer(native) : nullptr;
-        std::cerr << "save_snapshot: native=" << native << ", renderer=" << renderer << std::endl;
-        if (renderer && gsk_renderer_is_realized(renderer)) {
-            graphene_rect_t bounds;
-            graphene_rect_init(&bounds, 0.0f, 0.0f, (float)w, (float)h);
-            GdkTexture* texture = gsk_renderer_render_texture(renderer, node, &bounds);
-            if (texture) {
-                ok = gdk_texture_save_to_png(texture, filename.c_str());
-                std::cerr << "save_snapshot: gdk_texture_save_to_png returned " << ok << std::endl;
-                g_object_unref(texture);
-            } else {
-                std::cerr << "save_snapshot: render_texture failed" << std::endl;
-            }
-        } else {
-            std::cerr << "save_snapshot: renderer not realized" << std::endl;
-        }
-        gsk_render_node_unref(node);
-    } else {
-        std::cerr << "save_snapshot: snapshot_free_to_node returned null" << std::endl;
-    }
-    g_object_unref(paintable);
-    return ok;
+    if (!window_) return false;
+    return ui::save_widget_png(window_, filename, 980, 560);
 }
 
 void MainWindow::setup_ui() {
     window_ = gtk_application_window_new(app_);
     gtk_window_set_title(GTK_WINDOW(window_), "OpenDM");
     gtk_window_set_default_size(GTK_WINDOW(window_), 1260, 660);
-    gtk_widget_add_css_class(window_, "idm-main-window");
+    ui::add_class(window_, "idm-main-window");
 
     g_signal_connect(window_, "destroy", G_CALLBACK(+[](GtkWidget*, gpointer d) {
         auto* self = static_cast<MainWindow*>(d);
@@ -177,10 +132,11 @@ void MainWindow::setup_ui() {
         }
     }), this);
 
-    GtkEventController* key_ctrl = gtk_event_controller_key_new();
-    g_signal_connect(key_ctrl, "key-pressed", G_CALLBACK(+[](GtkEventControllerKey*, guint keyval, guint, GdkModifierType state, gpointer user_data) -> gboolean {
+    // Connected "after" so the focused widget sees the key first, then the window shortcuts run.
+    g_signal_connect_after(window_, "key-press-event", G_CALLBACK(+[](GtkWidget*, GdkEventKey* event, gpointer user_data) -> gboolean {
         auto* self = static_cast<MainWindow*>(user_data);
-        bool ctrl = (state & GDK_CONTROL_MASK) != 0;
+        guint keyval = event->keyval;
+        bool ctrl = (event->state & GDK_CONTROL_MASK) != 0;
 
         if (ctrl && (keyval == GDK_KEY_n || keyval == GDK_KEY_N)) {
             self->on_add_url_clicked();
@@ -206,10 +162,9 @@ void MainWindow::setup_ui() {
         }
         return GDK_EVENT_PROPAGATE;
     }), this);
-    gtk_widget_add_controller(window_, key_ctrl);
 
     GtkWidget* main_vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
-    gtk_window_set_child(GTK_WINDOW(window_), main_vbox);
+    gtk_container_add(GTK_CONTAINER(window_), main_vbox);
 
     setup_menubar(main_vbox);
     setup_toolbar(main_vbox);
@@ -217,11 +172,9 @@ void MainWindow::setup_ui() {
     // Paned view: Sidebar (Left) + Downloads Table (Right)
     GtkWidget* paned = gtk_paned_new(GTK_ORIENTATION_HORIZONTAL);
     gtk_paned_set_position(GTK_PANED(paned), 260);
-    gtk_paned_set_resize_start_child(GTK_PANED(paned), FALSE);
-    gtk_paned_set_resize_end_child(GTK_PANED(paned), TRUE);
     gtk_widget_set_hexpand(paned, TRUE);
     gtk_widget_set_vexpand(paned, TRUE);
-    gtk_box_append(GTK_BOX(main_vbox), paned);
+    gtk_container_add(GTK_CONTAINER(main_vbox), paned);
 
     setup_sidebar(paned);
     setup_downloads_view(paned);
@@ -275,8 +228,9 @@ void MainWindow::setup_menubar(GtkWidget* parent_box) {
     g_menu_append(help_menu, "GitHub Repository...", "win.github");
     g_menu_append_submenu(menubar_model, "Help", G_MENU_MODEL(help_menu));
 
-    GtkWidget* menubar = gtk_popover_menu_bar_new_from_model(G_MENU_MODEL(menubar_model));
-    gtk_box_append(GTK_BOX(parent_box), menubar);
+    GtkWidget* menubar = gtk_menu_bar_new_from_model(G_MENU_MODEL(menubar_model));
+    g_object_unref(menubar_model);
+    gtk_container_add(GTK_CONTAINER(parent_box), menubar);
 
     // Register actions on window
     auto add_win_action = [&](const char* name, void (*cb)(GSimpleAction*, GVariant*, gpointer)) {
@@ -317,31 +271,31 @@ void MainWindow::setup_menubar(GtkWidget* parent_box) {
 
 void MainWindow::setup_toolbar(GtkWidget* parent_box) {
     GtkWidget* tb_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
-    gtk_widget_add_css_class(tb_box, "idm-toolbar-box");
-    gtk_box_append(GTK_BOX(parent_box), tb_box);
+    ui::add_class(tb_box, "idm-toolbar-box");
+    gtk_container_add(GTK_CONTAINER(parent_box), tb_box);
 
     auto add_sep = [&]() {
         GtkWidget* sep = gtk_separator_new(GTK_ORIENTATION_VERTICAL);
-        gtk_widget_add_css_class(sep, "idm-toolbar-separator");
-        gtk_box_append(GTK_BOX(tb_box), sep);
+        ui::add_class(sep, "idm-toolbar-separator");
+        gtk_container_add(GTK_CONTAINER(tb_box), sep);
     };
 
     // Group 1: Primary Add & Download controls
-    gtk_box_append(GTK_BOX(tb_box), UiAssets::create_toolbar_button(
+    gtk_container_add(GTK_CONTAINER(tb_box), UiAssets::create_toolbar_button(
         "list-add-symbolic", "Add URL", "Add new download address (Ctrl+N)",
         G_CALLBACK(+[](GtkButton*, gpointer d) { static_cast<MainWindow*>(d)->on_add_url_clicked(); }), this, true));
 
     btn_resume_ = UiAssets::create_toolbar_button(
         "media-playback-start-symbolic", "Resume", "Resume selected download",
         G_CALLBACK(+[](GtkButton*, gpointer d) { static_cast<MainWindow*>(d)->on_resume_clicked(); }), this);
-    gtk_box_append(GTK_BOX(tb_box), btn_resume_);
+    gtk_container_add(GTK_CONTAINER(tb_box), btn_resume_);
 
     btn_stop_ = UiAssets::create_toolbar_button(
         "media-playback-pause-symbolic", "Pause", "Pause selected download",
         G_CALLBACK(+[](GtkButton*, gpointer d) { static_cast<MainWindow*>(d)->on_stop_clicked(); }), this);
-    gtk_box_append(GTK_BOX(tb_box), btn_stop_);
+    gtk_container_add(GTK_CONTAINER(tb_box), btn_stop_);
 
-    gtk_box_append(GTK_BOX(tb_box), UiAssets::create_toolbar_button(
+    gtk_container_add(GTK_CONTAINER(tb_box), UiAssets::create_toolbar_button(
         "media-playback-stop-symbolic", "Stop All", "Stop all active downloads",
         G_CALLBACK(+[](GtkButton*, gpointer d) { static_cast<MainWindow*>(d)->on_stop_all_clicked(); }), this));
 
@@ -351,35 +305,35 @@ void MainWindow::setup_toolbar(GtkWidget* parent_box) {
     btn_delete_ = UiAssets::create_toolbar_button(
         "edit-delete-symbolic", "Delete", "Delete selected download from list",
         G_CALLBACK(+[](GtkButton*, gpointer d) { static_cast<MainWindow*>(d)->on_delete_clicked(); }), this);
-    gtk_box_append(GTK_BOX(tb_box), btn_delete_);
+    gtk_container_add(GTK_CONTAINER(tb_box), btn_delete_);
 
-    gtk_box_append(GTK_BOX(tb_box), UiAssets::create_toolbar_button(
+    gtk_container_add(GTK_CONTAINER(tb_box), UiAssets::create_toolbar_button(
         "user-trash-symbolic", "Clean", "Delete all completed downloads from list",
         G_CALLBACK(+[](GtkButton*, gpointer d) { static_cast<MainWindow*>(d)->on_delete_completed_clicked(); }), this));
 
     add_sep();
 
     // Group 3: Queue & Schedule
-    gtk_box_append(GTK_BOX(tb_box), UiAssets::create_toolbar_button(
+    gtk_container_add(GTK_CONTAINER(tb_box), UiAssets::create_toolbar_button(
         "media-playlist-repeat-symbolic", "Start Queue", "Start processing download queue",
         G_CALLBACK(+[](GtkButton*, gpointer d) { static_cast<MainWindow*>(d)->on_start_queue_clicked(); }), this, false, true));
 
-    gtk_box_append(GTK_BOX(tb_box), UiAssets::create_toolbar_button(
+    gtk_container_add(GTK_CONTAINER(tb_box), UiAssets::create_toolbar_button(
         "media-playback-stop-symbolic", "Stop Queue", "Stop download queue",
         G_CALLBACK(+[](GtkButton*, gpointer d) { static_cast<MainWindow*>(d)->on_stop_queue_clicked(); }), this, false, true));
 
-    gtk_box_append(GTK_BOX(tb_box), UiAssets::create_toolbar_button(
+    gtk_container_add(GTK_CONTAINER(tb_box), UiAssets::create_toolbar_button(
         "alarm-symbolic", "Scheduler", "Configure download schedules and queues",
         G_CALLBACK(+[](GtkButton*, gpointer d) { static_cast<MainWindow*>(d)->on_scheduler_clicked(); }), this));
 
     add_sep();
 
     // Group 4: Tools & Options
-    gtk_box_append(GTK_BOX(tb_box), UiAssets::create_toolbar_button(
+    gtk_container_add(GTK_CONTAINER(tb_box), UiAssets::create_toolbar_button(
         "preferences-system-symbolic", "Options", "OpenDM Options and Preferences",
         G_CALLBACK(+[](GtkButton*, gpointer d) { static_cast<MainWindow*>(d)->on_options_clicked(0); }), this));
 
-    gtk_box_append(GTK_BOX(tb_box), UiAssets::create_toolbar_button(
+    gtk_container_add(GTK_CONTAINER(tb_box), UiAssets::create_toolbar_button(
         "network-transmit-receive-symbolic", "Grabber", "Open Site Grabber spider wizard",
         G_CALLBACK(+[](GtkButton*, gpointer d) { static_cast<MainWindow*>(d)->on_site_grabber_clicked(); }), this));
 
@@ -388,37 +342,38 @@ void MainWindow::setup_toolbar(GtkWidget* parent_box) {
 
 void MainWindow::setup_sidebar(GtkWidget* paned) {
     sidebar_vbox_ = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
-    gtk_widget_add_css_class(sidebar_vbox_, "idm-sidebar-frame");
+    ui::add_class(sidebar_vbox_, "idm-sidebar-frame");
     gtk_widget_set_size_request(sidebar_vbox_, 250, -1);
 
     // Header label + Close '×' button
     GtkWidget* header_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
-    gtk_widget_add_css_class(header_box, "idm-category-header-box");
+    ui::add_class(header_box, "idm-category-header-box");
 
-    GtkWidget* header_lbl = gtk_label_new("Categories");
-    gtk_widget_add_css_class(header_lbl, "idm-category-header-label");
+    // Upper-cased here because GTK3 CSS has no text-transform.
+    GtkWidget* header_lbl = gtk_label_new("CATEGORIES");
+    ui::add_class(header_lbl, "idm-category-header-label");
     gtk_label_set_xalign(GTK_LABEL(header_lbl), 0.0f);
     gtk_widget_set_hexpand(header_lbl, TRUE);
-    gtk_box_append(GTK_BOX(header_box), header_lbl);
+    gtk_container_add(GTK_CONTAINER(header_box), header_lbl);
 
     GtkWidget* close_btn = gtk_button_new_with_label("×");
-    gtk_widget_add_css_class(close_btn, "flat");
-    gtk_widget_add_css_class(close_btn, "idm-sidebar-close-btn");
+    ui::add_class(close_btn, "flat");
+    ui::add_class(close_btn, "idm-sidebar-close-btn");
     gtk_widget_set_tooltip_text(close_btn, "Hide Categories");
     g_signal_connect(close_btn, "clicked", G_CALLBACK(+[](GtkButton*, gpointer d) {
         static_cast<MainWindow*>(d)->on_sidebar_toggle_clicked();
     }), this);
-    gtk_box_append(GTK_BOX(header_box), close_btn);
+    gtk_container_add(GTK_CONTAINER(header_box), close_btn);
 
-    gtk_box_append(GTK_BOX(sidebar_vbox_), header_box);
+    gtk_container_add(GTK_CONTAINER(sidebar_vbox_), header_box);
 
-    GtkWidget* scroll = gtk_scrolled_window_new();
+    GtkWidget* scroll = gtk_scrolled_window_new(nullptr, nullptr);
     gtk_widget_set_vexpand(scroll, TRUE);
-    gtk_box_append(GTK_BOX(sidebar_vbox_), scroll);
+    gtk_container_add(GTK_CONTAINER(sidebar_vbox_), scroll);
 
     sidebar_list_ = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
-    gtk_widget_add_css_class(sidebar_list_, "idm-category-list");
-    gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(scroll), sidebar_list_);
+    ui::add_class(sidebar_list_, "idm-category-list");
+    gtk_container_add(GTK_CONTAINER(scroll), sidebar_list_);
 
     // Setup hierarchy data
     category_expanded_["All Downloads"] = true;
@@ -452,16 +407,16 @@ void MainWindow::setup_sidebar(GtkWidget* paned) {
 
     for (const auto& item : items) {
         GtkWidget* row_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
-        gtk_widget_add_css_class(row_box, "idm-tree-row");
+        ui::add_class(row_box, "idm-tree-row");
         if (item.name == current_category_) {
-            gtk_widget_add_css_class(row_box, "selected");
+            ui::add_class(row_box, "selected");
         }
 
         if (item.is_parent) {
             bool exp = category_expanded_[item.name];
             GtkWidget* arrow_btn = gtk_button_new_with_label(exp ? "▾" : "▸");
-            gtk_widget_add_css_class(arrow_btn, "flat");
-            gtk_widget_add_css_class(arrow_btn, "idm-tree-arrow-btn");
+            ui::add_class(arrow_btn, "flat");
+            ui::add_class(arrow_btn, "idm-tree-arrow-btn");
             
             // Store category name on arrow
             g_object_set_data_full(G_OBJECT(arrow_btn), "cat_name", g_strdup(item.name.c_str()), g_free);
@@ -475,60 +430,64 @@ void MainWindow::setup_sidebar(GtkWidget* paned) {
                 for (const auto& child : self->category_children_[cname]) {
                     auto it = self->category_rows_.find(child);
                     if (it != self->category_rows_.end()) {
-                        gtk_widget_set_visible(it->second, new_exp);
+                        gtk_widget_set_visible(gtk_widget_get_parent(it->second), new_exp);
                     }
                 }
             }), this);
-            gtk_box_append(GTK_BOX(row_box), arrow_btn);
+            gtk_container_add(GTK_CONTAINER(row_box), arrow_btn);
         } else {
             // Indent spacer
             GtkWidget* spacer = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
             gtk_widget_set_size_request(spacer, item.parent.empty() ? 16 : 28, -1);
-            gtk_box_append(GTK_BOX(row_box), spacer);
+            gtk_container_add(GTK_CONTAINER(row_box), spacer);
         }
 
         GtkWidget* icon = UiAssets::create_image(item.icon, 16, 16, "folder-symbolic");
-        gtk_box_append(GTK_BOX(row_box), icon);
+        gtk_container_add(GTK_CONTAINER(row_box), icon);
 
         GtkWidget* lbl = gtk_label_new(item.name.c_str());
         gtk_label_set_xalign(GTK_LABEL(lbl), 0.0f);
         gtk_label_set_ellipsize(GTK_LABEL(lbl), PANGO_ELLIPSIZE_END);
         gtk_widget_set_hexpand(lbl, TRUE);
-        gtk_box_append(GTK_BOX(row_box), lbl);
+        gtk_container_add(GTK_CONTAINER(row_box), lbl);
 
-        // Click gesture on category row
-        GtkGesture* click = gtk_gesture_click_new();
-        g_object_set_data_full(G_OBJECT(click), "cat_name", g_strdup(item.name.c_str()), g_free);
-        g_signal_connect(click, "pressed", G_CALLBACK(+[](GtkGestureClick* gesture, int, double, double, gpointer d) {
+        // Click handler on category row (event box wrapper; CSS stays on row_box)
+        GtkWidget* row_click = ui::wrap_clickable(row_box);
+        g_object_set_data_full(G_OBJECT(row_click), "cat_name", g_strdup(item.name.c_str()), g_free);
+        g_signal_connect(row_click, "button-press-event", G_CALLBACK(+[](GtkWidget* w, GdkEventButton* ev, gpointer d) -> gboolean {
+            if (ev->type != GDK_BUTTON_PRESS || ev->button != 1) return GDK_EVENT_PROPAGATE;
             auto* self = static_cast<MainWindow*>(d);
-            const char* cname = static_cast<const char*>(g_object_get_data(G_OBJECT(gesture), "cat_name"));
+            const char* cname = static_cast<const char*>(g_object_get_data(G_OBJECT(w), "cat_name"));
             if (cname) {
                 self->on_category_selected(cname);
             }
+            return GDK_EVENT_PROPAGATE;
         }), this);
-        gtk_widget_add_controller(row_box, GTK_EVENT_CONTROLLER(click));
 
         category_rows_[item.name] = row_box;
 
-        // Initial visibility
+        // Child rows are toggled by the expander arrow, so manage their visibility manually
+        // instead of letting gtk_widget_show_all() reveal collapsed entries.
+        gtk_widget_show_all(row_click);
         if (!item.parent.empty()) {
-            gtk_widget_set_visible(row_box, category_expanded_[item.parent]);
+            gtk_widget_set_no_show_all(row_click, TRUE);
+            gtk_widget_set_visible(row_click, category_expanded_[item.parent]);
         }
 
-        gtk_box_append(GTK_BOX(sidebar_list_), row_box);
+        gtk_container_add(GTK_CONTAINER(sidebar_list_), row_click);
     }
 
-    gtk_paned_set_start_child(GTK_PANED(paned), sidebar_vbox_);
+    gtk_paned_pack1(GTK_PANED(paned), sidebar_vbox_, FALSE, FALSE);
 }
 
 void MainWindow::setup_downloads_view(GtkWidget* paned) {
     GtkWidget* right_frame = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
-    gtk_widget_add_css_class(right_frame, "idm-table-frame");
+    ui::add_class(right_frame, "idm-table-frame");
     gtk_widget_set_hexpand(right_frame, TRUE);
 
     // Header row matching authentic IDM columns
     GtkWidget* header_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 12);
-    gtk_widget_add_css_class(header_box, "idm-table-header");
+    ui::add_class(header_box, "idm-table-header");
     gtk_widget_set_hexpand(header_box, TRUE);
 
     header_col_widgets_.clear();
@@ -537,74 +496,75 @@ void MainWindow::setup_downloads_view(GtkWidget* paned) {
     GtkWidget* col0_hdr = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
     GtkWidget* hdr_spacer = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
     gtk_widget_set_size_request(hdr_spacer, 20, -1);
-    gtk_box_append(GTK_BOX(col0_hdr), hdr_spacer);
+    gtk_container_add(GTK_CONTAINER(col0_hdr), hdr_spacer);
 
-    GtkWidget* hdr_name = gtk_label_new("File Name");
-    gtk_widget_add_css_class(hdr_name, "idm-col-header");
+    GtkWidget* hdr_name = gtk_label_new("FILE NAME");
+    ui::add_class(hdr_name, "idm-col-header");
     gtk_label_set_xalign(GTK_LABEL(hdr_name), 0.0f);
     gtk_label_set_width_chars(GTK_LABEL(hdr_name), 20);
     gtk_widget_set_hexpand(hdr_name, TRUE);
-    gtk_box_append(GTK_BOX(col0_hdr), hdr_name);
+    gtk_container_add(GTK_CONTAINER(col0_hdr), hdr_name);
 
     gtk_widget_set_hexpand(col0_hdr, TRUE);
-    gtk_box_append(GTK_BOX(header_box), col0_hdr);
+    gtk_container_add(GTK_CONTAINER(header_box), col0_hdr);
 
+    // Header titles are upper-cased in code because GTK3 CSS has no text-transform.
     auto add_hdr_col = [&](const char* title, int width_chars) {
         GtkWidget* lbl = gtk_label_new(title);
-        gtk_widget_add_css_class(lbl, "idm-col-header");
+        ui::add_class(lbl, "idm-col-header");
         gtk_label_set_xalign(GTK_LABEL(lbl), 0.0f);
         if (width_chars > 0) {
             gtk_label_set_width_chars(GTK_LABEL(lbl), width_chars);
         }
-        gtk_box_append(GTK_BOX(header_box), lbl);
+        gtk_container_add(GTK_CONTAINER(header_box), lbl);
         header_col_widgets_.push_back(lbl);
     };
 
-    add_hdr_col("Size", 8);        // Index 0 in header_col_widgets_
-    add_hdr_col("Status", 9);      // Index 1
-    add_hdr_col("Time Left", 9);   // Index 2
-    add_hdr_col("Speed", 9);       // Index 3
-    add_hdr_col("Date Added", 9);  // Index 4
-    add_hdr_col("Domain", 11);     // Index 5
+    add_hdr_col("SIZE", 8);        // Index 0 in header_col_widgets_
+    add_hdr_col("STATUS", 9);      // Index 1
+    add_hdr_col("TIME LEFT", 9);   // Index 2
+    add_hdr_col("SPEED", 9);       // Index 3
+    add_hdr_col("DATE ADDED", 9);  // Index 4
+    add_hdr_col("DOMAIN", 11);     // Index 5
 
-    gtk_box_append(GTK_BOX(right_frame), header_box);
+    gtk_container_add(GTK_CONTAINER(right_frame), header_box);
 
     // Scrollable downloads list
-    GtkWidget* scroll = gtk_scrolled_window_new();
+    GtkWidget* scroll = gtk_scrolled_window_new(nullptr, nullptr);
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scroll), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
     gtk_widget_set_hexpand(scroll, TRUE);
     gtk_widget_set_vexpand(scroll, TRUE);
-    gtk_box_append(GTK_BOX(right_frame), scroll);
+    gtk_container_add(GTK_CONTAINER(right_frame), scroll);
 
     downloads_container_ = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
     gtk_widget_set_hexpand(downloads_container_, TRUE);
-    gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(scroll), downloads_container_);
+    gtk_container_add(GTK_CONTAINER(scroll), downloads_container_);
 
-    gtk_paned_set_end_child(GTK_PANED(paned), right_frame);
+    gtk_paned_pack2(GTK_PANED(paned), right_frame, TRUE, FALSE);
 }
 
 void MainWindow::setup_statusbar(GtkWidget* parent_box) {
     GtkWidget* bar = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
-    gtk_widget_add_css_class(bar, "idm-statusbar");
-    gtk_box_append(GTK_BOX(parent_box), bar);
+    ui::add_class(bar, "idm-statusbar");
+    gtk_container_add(GTK_CONTAINER(parent_box), bar);
 
     status_panel_count_ = gtk_label_new("Ready");
-    gtk_widget_add_css_class(status_panel_count_, "idm-status-panel");
+    ui::add_class(status_panel_count_, "idm-status-panel");
     gtk_label_set_xalign(GTK_LABEL(status_panel_count_), 0.0f);
     gtk_widget_set_hexpand(status_panel_count_, TRUE);
-    gtk_box_append(GTK_BOX(bar), status_panel_count_);
+    gtk_container_add(GTK_CONTAINER(bar), status_panel_count_);
 
     status_panel_speed_ = gtk_label_new("Total Speed: 0.00 KB/s");
-    gtk_widget_add_css_class(status_panel_speed_, "idm-status-panel");
-    gtk_box_append(GTK_BOX(bar), status_panel_speed_);
+    ui::add_class(status_panel_speed_, "idm-status-panel");
+    gtk_container_add(GTK_CONTAINER(bar), status_panel_speed_);
 
     status_panel_limiter_ = gtk_button_new_with_label("Speed Limiter: OFF");
-    gtk_widget_add_css_class(status_panel_limiter_, "flat");
-    gtk_widget_add_css_class(status_panel_limiter_, "idm-status-panel-btn");
+    ui::add_class(status_panel_limiter_, "flat");
+    ui::add_class(status_panel_limiter_, "idm-status-panel-btn");
     g_signal_connect(status_panel_limiter_, "clicked", G_CALLBACK(+[](GtkButton*, gpointer d) {
         static_cast<MainWindow*>(d)->on_speed_limiter_clicked();
     }), this);
-    gtk_box_append(GTK_BOX(bar), status_panel_limiter_);
+    gtk_container_add(GTK_CONTAINER(bar), status_panel_limiter_);
 }
 
 void MainWindow::on_sidebar_toggle_clicked() {
@@ -618,9 +578,9 @@ void MainWindow::on_category_selected(const std::string& category) {
     current_category_ = category;
     for (auto& [name, widget] : category_rows_) {
         if (name == category) {
-            gtk_widget_add_css_class(widget, "selected");
+            ui::add_class(widget, "selected");
         } else {
-            gtk_widget_remove_css_class(widget, "selected");
+            ui::remove_class(widget, "selected");
         }
     }
     refresh_downloads_list();
@@ -638,12 +598,7 @@ void MainWindow::refresh_downloads_list() {
     auto sessions = QueueManager::instance().get_main_queue().get_all_sessions();
 
     // Remove existing row children
-    GtkWidget* child = gtk_widget_get_first_child(downloads_container_);
-    while (child != nullptr) {
-        GtkWidget* next = gtk_widget_get_next_sibling(child);
-        gtk_box_remove(GTK_BOX(downloads_container_), child);
-        child = next;
-    }
+    ui::clear_container(downloads_container_);
 
     // Recreate column size groups for synchronized column widths
     for (auto* sg : col_size_groups_) {
@@ -682,33 +637,33 @@ void MainWindow::refresh_downloads_list() {
 
         // Create row box matching columns
         GtkWidget* row_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 12);
-        gtk_widget_add_css_class(row_box, "idm-download-row");
+        ui::add_class(row_box, "idm-download-row");
         gtk_widget_set_hexpand(row_box, TRUE);
         g_object_set_data_full(G_OBJECT(row_box), "session_id", g_strdup(s->get_id().c_str()), g_free);
 
         if (s->get_id() == selected_session_id_) {
-            gtk_widget_add_css_class(row_box, "selected");
+            ui::add_class(row_box, "selected");
         }
 
         // Col 0: File Name (Icon + text)
         GtkWidget* col0 = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
-        gtk_widget_add_css_class(col0, "idm-download-cell");
+        ui::add_class(col0, "idm-download-cell");
         gtk_widget_set_hexpand(col0, TRUE);
         GtkWidget* f_icon = UiAssets::create_image(get_file_icon_name(s->get_filename()), 20, 20, "document-save-symbolic");
         GtkWidget* lbl_name = gtk_label_new(s->get_filename().c_str());
         gtk_label_set_xalign(GTK_LABEL(lbl_name), 0.0f);
         gtk_label_set_width_chars(GTK_LABEL(lbl_name), 20);
         gtk_label_set_ellipsize(GTK_LABEL(lbl_name), PANGO_ELLIPSIZE_END);
-        gtk_box_append(GTK_BOX(col0), f_icon);
-        gtk_box_append(GTK_BOX(col0), lbl_name);
-        gtk_box_append(GTK_BOX(row_box), col0);
+        gtk_container_add(GTK_CONTAINER(col0), f_icon);
+        gtk_container_add(GTK_CONTAINER(col0), lbl_name);
+        gtk_container_add(GTK_CONTAINER(row_box), col0);
 
         auto add_col_cell = [&](size_t col_idx, const std::string& txt, int width_chars, const char* badge_class = nullptr) {
             GtkWidget* lbl = gtk_label_new(txt.c_str());
-            gtk_widget_add_css_class(lbl, "idm-download-cell");
+            ui::add_class(lbl, "idm-download-cell");
             if (badge_class) {
-                gtk_widget_add_css_class(lbl, "idm-badge");
-                gtk_widget_add_css_class(lbl, badge_class);
+                ui::add_class(lbl, "idm-badge");
+                ui::add_class(lbl, badge_class);
             }
             gtk_label_set_xalign(GTK_LABEL(lbl), 0.0f);
             gtk_label_set_ellipsize(GTK_LABEL(lbl), PANGO_ELLIPSIZE_END);
@@ -718,7 +673,7 @@ void MainWindow::refresh_downloads_list() {
             if (col_idx < col_size_groups_.size() && col_size_groups_[col_idx]) {
                 gtk_size_group_add_widget(col_size_groups_[col_idx], lbl);
             }
-            gtk_box_append(GTK_BOX(row_box), lbl);
+            gtk_container_add(GTK_CONTAINER(row_box), lbl);
         };
 
         // Col 1: Size
@@ -764,80 +719,87 @@ void MainWindow::refresh_downloads_list() {
         }
         add_col_cell(5, domain, 11);
 
-        // Click gesture for row selection, right-click context menu, and double-click activation
-        GtkGesture* click = gtk_gesture_click_new();
-        gtk_gesture_single_set_button(GTK_GESTURE_SINGLE(click), 0); // Listen to all mouse buttons
-        g_object_set_data_full(G_OBJECT(click), "session_id", g_strdup(s->get_id().c_str()), g_free);
+        // Row selection, right-click context menu, and double-click activation.
+        // The event box wrapper receives pointer events; CSS stays on row_box.
+        GtkWidget* row_click = ui::wrap_clickable(row_box);
+        g_object_set_data_full(G_OBJECT(row_click), "session_id", g_strdup(s->get_id().c_str()), g_free);
 
-        g_signal_connect(click, "pressed", G_CALLBACK(+[](GtkGestureClick* gesture, int n_press, double x, double y, gpointer d) {
+        g_signal_connect(row_click, "button-press-event", G_CALLBACK(+[](GtkWidget* w, GdkEventButton* ev, gpointer d) -> gboolean {
             auto* self = static_cast<MainWindow*>(d);
-            const char* sid = static_cast<const char*>(g_object_get_data(G_OBJECT(gesture), "session_id"));
-            if (!sid) return;
-            guint button = gtk_gesture_single_get_current_button(GTK_GESTURE_SINGLE(gesture));
-            self->selected_session_id_ = sid;
+            const char* sid = static_cast<const char*>(g_object_get_data(G_OBJECT(w), "session_id"));
+            if (!sid) return GDK_EVENT_PROPAGATE;
+            std::string session_id = sid;
+            self->selected_session_id_ = session_id;
             self->update_toolbar_sensitivity();
 
-            // Visually highlight row without rebuilding DOM/gesture
-            GtkWidget* c = gtk_widget_get_first_child(self->downloads_container_);
-            while (c) {
+            // Visually highlight row without rebuilding the list
+            GList* rows = gtk_container_get_children(GTK_CONTAINER(self->downloads_container_));
+            for (GList* l = rows; l != nullptr; l = l->next) {
+                GtkWidget* c = GTK_WIDGET(l->data);
                 const char* csid = static_cast<const char*>(g_object_get_data(G_OBJECT(c), "session_id"));
-                if (csid && self->selected_session_id_ == csid) {
-                    gtk_widget_add_css_class(c, "selected");
+                GtkWidget* inner = GTK_IS_BIN(c) ? gtk_bin_get_child(GTK_BIN(c)) : nullptr;
+                if (!inner) continue;
+                if (csid && session_id == csid) {
+                    ui::add_class(inner, "selected");
                 } else {
-                    gtk_widget_remove_css_class(c, "selected");
+                    ui::remove_class(inner, "selected");
                 }
-                c = gtk_widget_get_next_sibling(c);
             }
+            g_list_free(rows);
 
-            if (button == 1) { // Left-click
-                if (n_press == 2) {
-                    self->on_row_activated(sid);
+            if (ev->button == 1) { // Left-click
+                if (ev->type == GDK_2BUTTON_PRESS) {
+                    self->on_row_activated(session_id);
                 }
-            } else if (button == 3) { // Right-click context menu
-                self->on_row_right_clicked(gesture, n_press, x, y, sid);
+            } else if (ev->button == 3 && ev->type == GDK_BUTTON_PRESS) { // Right-click context menu
+                self->on_row_right_clicked(ev, session_id);
+                return GDK_EVENT_STOP;
             }
+            return GDK_EVENT_PROPAGATE;
         }), this);
 
-        gtk_widget_add_controller(row_box, GTK_EVENT_CONTROLLER(click));
-        gtk_box_append(GTK_BOX(downloads_container_), row_box);
+        gtk_container_add(GTK_CONTAINER(downloads_container_), row_click);
     }
 
     // Modern GTK Empty State when 0 downloads
     if (rendered_count == 0) {
         GtkWidget* empty_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
-        gtk_widget_add_css_class(empty_box, "idm-empty-state-box");
+        ui::add_class(empty_box, "idm-empty-state-box");
         gtk_widget_set_halign(empty_box, GTK_ALIGN_CENTER);
         gtk_widget_set_valign(empty_box, GTK_ALIGN_CENTER);
         gtk_widget_set_vexpand(empty_box, TRUE);
 
-        GtkWidget* empty_icon = gtk_image_new_from_icon_name("folder-download-symbolic");
+        GtkWidget* empty_icon = gtk_image_new_from_icon_name("folder-download-symbolic", GTK_ICON_SIZE_DIALOG);
         gtk_image_set_pixel_size(GTK_IMAGE(empty_icon), 64);
-        gtk_widget_add_css_class(empty_icon, "idm-empty-state-icon");
-        gtk_box_append(GTK_BOX(empty_box), empty_icon);
+        ui::add_class(empty_icon, "idm-empty-state-icon");
+        gtk_container_add(GTK_CONTAINER(empty_box), empty_icon);
 
         GtkWidget* title = gtk_label_new("No Downloads");
-        gtk_widget_add_css_class(title, "idm-empty-state-title");
-        gtk_box_append(GTK_BOX(empty_box), title);
+        ui::add_class(title, "idm-empty-state-title");
+        gtk_container_add(GTK_CONTAINER(empty_box), title);
 
         std::string sub_txt = (current_category_ == "All Downloads")
             ? "Click '+ Add URL' or paste a download link to begin"
             : "No downloads found in category '" + current_category_ + "'";
         GtkWidget* subtitle = gtk_label_new(sub_txt.c_str());
-        gtk_widget_add_css_class(subtitle, "idm-empty-state-subtitle");
-        gtk_box_append(GTK_BOX(empty_box), subtitle);
+        ui::add_class(subtitle, "idm-empty-state-subtitle");
+        gtk_container_add(GTK_CONTAINER(empty_box), subtitle);
 
         if (current_category_ == "All Downloads") {
             GtkWidget* add_btn = gtk_button_new_with_label("+ Add Download");
-            gtk_widget_add_css_class(add_btn, "suggested-action");
+            ui::add_class(add_btn, "suggested-action");
             gtk_widget_set_halign(add_btn, GTK_ALIGN_CENTER);
             g_signal_connect(add_btn, "clicked", G_CALLBACK(+[](GtkButton*, gpointer d) {
                 static_cast<MainWindow*>(d)->on_add_url_clicked();
             }), this);
-            gtk_box_append(GTK_BOX(empty_box), add_btn);
+            gtk_container_add(GTK_CONTAINER(empty_box), add_btn);
         }
 
-        gtk_box_append(GTK_BOX(downloads_container_), empty_box);
+        gtk_container_add(GTK_CONTAINER(downloads_container_), empty_box);
     }
+
+    // Rows are created after the window is mapped; GTK3 widgets start hidden.
+    gtk_widget_show_all(downloads_container_);
 
     // Update status bar panels
     std::string count_str = std::to_string(sessions.size()) + " files";
@@ -928,7 +890,7 @@ void MainWindow::prompt_download(const DownloadPromptInfo& info) {
 
             if (!is_direct_stream && YouTubeEngine::is_youtube_url(yt_url)) {
                 // Show analyzing dialog with spinner while OpenDM engine resolves formats
-                GtkWidget* loading_dlg = gtk_window_new();
+                GtkWidget* loading_dlg = gtk_window_new(GTK_WINDOW_TOPLEVEL);
                 gtk_window_set_title(GTK_WINDOW(loading_dlg), "OpenDM - Analyzing Video");
                 gtk_window_set_modal(GTK_WINDOW(loading_dlg), TRUE);
                 gtk_window_set_transient_for(GTK_WINDOW(loading_dlg), parent);
@@ -940,18 +902,18 @@ void MainWindow::prompt_download(const DownloadPromptInfo& info) {
                 gtk_widget_set_margin_end(box, 20);
                 gtk_widget_set_margin_top(box, 20);
                 gtk_widget_set_margin_bottom(box, 20);
-                gtk_window_set_child(GTK_WINDOW(loading_dlg), box);
+                gtk_container_add(GTK_CONTAINER(loading_dlg), box);
 
                 GtkWidget* spinner = gtk_spinner_new();
                 gtk_spinner_start(GTK_SPINNER(spinner));
                 gtk_widget_set_size_request(spinner, 32, 32);
-                gtk_box_append(GTK_BOX(box), spinner);
+                gtk_container_add(GTK_CONTAINER(box), spinner);
 
                 GtkWidget* lbl = gtk_label_new("Resolving YouTube video streams via OpenDM Engine...");
                 gtk_label_set_xalign(GTK_LABEL(lbl), 0.5f);
-                gtk_box_append(GTK_BOX(box), lbl);
+                gtk_container_add(GTK_CONTAINER(box), lbl);
 
-                gtk_window_present(GTK_WINDOW(loading_dlg));
+                ui::present(loading_dlg);
 
                 struct WorkerData {
                     MainWindow* main_win;
@@ -969,7 +931,7 @@ void MainWindow::prompt_download(const DownloadPromptInfo& info) {
 
                     g_idle_add(+[](gpointer p) -> gboolean {
                         auto* d = static_cast<WorkerData*>(p);
-                        gtk_window_destroy(GTK_WINDOW(d->loading_dlg));
+                        gtk_widget_destroy(GTK_WIDGET(d->loading_dlg));
 
                         if (d->success && d->yt_info.has_playable_formats()) {
                             GtkWindow* win_parent = GTK_WINDOW(d->main_win->window_);
@@ -1072,11 +1034,9 @@ void MainWindow::prompt_download(const DownloadPromptInfo& info) {
 }
 
 void MainWindow::on_add_url_clicked() {
-    GdkClipboard* clipboard = gtk_widget_get_clipboard(window_);
-    gdk_clipboard_read_text_async(clipboard, nullptr, +[](GObject* source, GAsyncResult* res, gpointer data) {
+    GtkClipboard* clipboard = gtk_widget_get_clipboard(window_, GDK_SELECTION_CLIPBOARD);
+    gtk_clipboard_request_text(clipboard, +[](GtkClipboard*, const gchar* text, gpointer data) {
         auto* self = static_cast<MainWindow*>(data);
-        GError* err = nullptr;
-        char* text = gdk_clipboard_read_text_finish(GDK_CLIPBOARD(source), res, &err);
         std::string initial_url;
         if (text) {
             std::string t = text;
@@ -1086,9 +1046,7 @@ void MainWindow::on_add_url_clicked() {
                 if (ws != std::string::npos) t = t.substr(0, ws);
                 initial_url = t;
             }
-            g_free(text);
         }
-        if (err) g_error_free(err);
 
         AddUrlDialog::show(GTK_WINDOW(self->window_), initial_url, [self](const AddUrlResult& res) {
             if (!res.accepted || res.url.empty()) return;
@@ -1223,7 +1181,7 @@ void MainWindow::on_delete_clicked() {
     auto s = QueueManager::instance().find_session(selected_session_id_);
     if (!s) return;
 
-    GtkWidget* dialog = gtk_window_new();
+    GtkWidget* dialog = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     gtk_window_set_title(GTK_WINDOW(dialog), "Delete Download");
     gtk_window_set_default_size(GTK_WINDOW(dialog), 380, 160);
     gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(window_));
@@ -1234,28 +1192,30 @@ void MainWindow::on_delete_clicked() {
     gtk_widget_set_margin_end(vbox, 16);
     gtk_widget_set_margin_top(vbox, 16);
     gtk_widget_set_margin_bottom(vbox, 16);
-    gtk_window_set_child(GTK_WINDOW(dialog), vbox);
+    gtk_container_add(GTK_CONTAINER(dialog), vbox);
 
     std::string msg = "Delete \"" + s->get_filename() + "\" from OpenDM?";
     GtkWidget* lbl = gtk_label_new(msg.c_str());
-    gtk_label_set_wrap(GTK_LABEL(lbl), TRUE);
+    gtk_label_set_line_wrap(GTK_LABEL(lbl), TRUE);
+    // Cap natural width: GTK3 sizes fixed-size windows to the unwrapped text otherwise.
+    gtk_label_set_max_width_chars(GTK_LABEL(lbl), 50);
     gtk_label_set_xalign(GTK_LABEL(lbl), 0.0f);
-    gtk_box_append(GTK_BOX(vbox), lbl);
+    gtk_container_add(GTK_CONTAINER(vbox), lbl);
 
     GtkWidget* chk_disk = gtk_check_button_new_with_label("Also delete downloaded file from disk");
-    gtk_box_append(GTK_BOX(vbox), chk_disk);
+    gtk_container_add(GTK_CONTAINER(vbox), chk_disk);
 
     GtkWidget* btn_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
     gtk_widget_set_halign(btn_box, GTK_ALIGN_END);
     gtk_widget_set_margin_top(btn_box, 8);
 
     GtkWidget* btn_ok = gtk_button_new_with_label("Delete");
-    gtk_widget_add_css_class(btn_ok, "destructive-action");
+    ui::add_class(btn_ok, "destructive-action");
     GtkWidget* btn_cancel = gtk_button_new_with_label("Cancel");
 
-    gtk_box_append(GTK_BOX(btn_box), btn_cancel);
-    gtk_box_append(GTK_BOX(btn_box), btn_ok);
-    gtk_box_append(GTK_BOX(vbox), btn_box);
+    gtk_container_add(GTK_CONTAINER(btn_box), btn_cancel);
+    gtk_container_add(GTK_CONTAINER(btn_box), btn_ok);
+    gtk_container_add(GTK_CONTAINER(vbox), btn_box);
 
     struct DelData {
         MainWindow* win;
@@ -1267,22 +1227,22 @@ void MainWindow::on_delete_clicked() {
     auto* dd = new DelData{this, dialog, chk_disk, selected_session_id_, s->get_destination_path()};
 
     g_signal_connect_swapped(btn_cancel, "clicked", G_CALLBACK(+[](DelData* d) {
-        gtk_window_destroy(GTK_WINDOW(d->dlg));
+        gtk_widget_destroy(GTK_WIDGET(d->dlg));
         delete d;
     }), dd);
 
     g_signal_connect_swapped(btn_ok, "clicked", G_CALLBACK(+[](DelData* d) {
-        bool del_file = gtk_check_button_get_active(GTK_CHECK_BUTTON(d->chk));
+        bool del_file = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(d->chk));
         if (del_file && !d->path.empty()) {
             std::error_code ec;
             std::filesystem::remove(d->path, ec);
         }
         d->win->on_delete_confirmed(del_file);
-        gtk_window_destroy(GTK_WINDOW(d->dlg));
+        gtk_widget_destroy(GTK_WIDGET(d->dlg));
         delete d;
     }), dd);
 
-    gtk_window_present(GTK_WINDOW(dialog));
+    ui::present(dialog);
 }
 
 void MainWindow::on_delete_confirmed(bool) {
@@ -1356,78 +1316,59 @@ void MainWindow::on_row_activated(const std::string& session_id) {
     }
 }
 
-void MainWindow::on_row_right_clicked(GtkGestureClick* gesture, int, double x, double y, const std::string& session_id) {
-    GtkWidget* row_box = gtk_event_controller_get_widget(GTK_EVENT_CONTROLLER(gesture));
-    if (!row_box) return;
-
+void MainWindow::on_row_right_clicked(GdkEventButton* event, const std::string& session_id) {
     auto session = QueueManager::instance().find_session(session_id);
     if (!session) return;
 
     active_context_menu_open_ = true;
 
-    GtkWidget* popover = gtk_popover_new();
-    gtk_widget_set_parent(popover, row_box);
-    gtk_widget_add_css_class(popover, "idm-context-menu");
+    GtkWidget* menu = gtk_menu_new();
+    ui::add_class(menu, "idm-context-menu");
+    gtk_menu_attach_to_widget(GTK_MENU(menu), window_, nullptr);
 
-    GdkRectangle rect;
-    rect.x = static_cast<int>(x);
-    rect.y = static_cast<int>(y);
-    rect.width = 1;
-    rect.height = 1;
-    gtk_popover_set_pointing_to(GTK_POPOVER(popover), &rect);
-    gtk_popover_set_position(GTK_POPOVER(popover), GTK_POS_BOTTOM);
-    gtk_popover_set_has_arrow(GTK_POPOVER(popover), FALSE);
-
-    g_signal_connect(popover, "closed", G_CALLBACK(+[](GtkPopover* p, gpointer data) {
+    g_signal_connect(menu, "deactivate", G_CALLBACK(+[](GtkMenuShell* m, gpointer data) {
         auto* self = static_cast<MainWindow*>(data);
         if (self) self->active_context_menu_open_ = false;
-        gtk_widget_unparent(GTK_WIDGET(p));
+        // Destroy once the activated item's handler has run.
+        g_idle_add(+[](gpointer w) -> gboolean {
+            gtk_widget_destroy(GTK_WIDGET(w));
+            return G_SOURCE_REMOVE;
+        }, m);
     }), this);
 
-    GtkWidget* menu_vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
-    gtk_widget_set_margin_start(menu_vbox, 4);
-    gtk_widget_set_margin_end(menu_vbox, 4);
-    gtk_widget_set_margin_top(menu_vbox, 4);
-    gtk_widget_set_margin_bottom(menu_vbox, 4);
-    gtk_popover_set_child(GTK_POPOVER(popover), menu_vbox);
-
     auto add_item = [&](const char* label, const char* icon_name, std::function<void(MainWindow*, const std::string&)> cb, bool enabled = true) {
-        GtkWidget* btn = gtk_button_new();
-        gtk_widget_add_css_class(btn, "flat");
-        gtk_widget_add_css_class(btn, "idm-context-item");
-        gtk_widget_set_sensitive(btn, enabled ? TRUE : FALSE);
+        GtkWidget* item = gtk_menu_item_new();
+        ui::add_class(item, "idm-context-item");
+        gtk_widget_set_sensitive(item, enabled ? TRUE : FALSE);
 
         GtkWidget* ibox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
         if (icon_name) {
-            GtkWidget* img = gtk_image_new_from_icon_name(icon_name);
+            GtkWidget* img = gtk_image_new_from_icon_name(icon_name, GTK_ICON_SIZE_MENU);
             gtk_image_set_pixel_size(GTK_IMAGE(img), 16);
-            gtk_box_append(GTK_BOX(ibox), img);
+            gtk_container_add(GTK_CONTAINER(ibox), img);
         }
         GtkWidget* lbl = gtk_label_new(label);
         gtk_label_set_xalign(GTK_LABEL(lbl), 0.0f);
-        gtk_box_append(GTK_BOX(ibox), lbl);
-        gtk_button_set_child(GTK_BUTTON(btn), ibox);
+        gtk_container_add(GTK_CONTAINER(ibox), lbl);
+        gtk_container_add(GTK_CONTAINER(item), ibox);
 
         struct ItemData {
             MainWindow* win;
-            GtkWidget* pop;
             std::string sid;
             std::function<void(MainWindow*, const std::string&)> callback;
         };
-        auto* id = new ItemData{this, popover, session_id, cb};
-        g_signal_connect(btn, "clicked", G_CALLBACK(+[](GtkButton*, gpointer data) {
+        auto* id = new ItemData{this, session_id, cb};
+        g_signal_connect(item, "activate", G_CALLBACK(+[](GtkMenuItem*, gpointer data) {
             auto* d = static_cast<ItemData*>(data);
-            gtk_popover_popdown(GTK_POPOVER(d->pop));
             if (d->callback) d->callback(d->win, d->sid);
         }), id);
-        g_object_set_data_full(G_OBJECT(btn), "item_data", id, +[](gpointer p) { delete static_cast<ItemData*>(p); });
+        g_object_set_data_full(G_OBJECT(item), "item_data", id, +[](gpointer p) { delete static_cast<ItemData*>(p); });
 
-        gtk_box_append(GTK_BOX(menu_vbox), btn);
+        gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
     };
 
     auto add_separator = [&]() {
-        GtkWidget* sep = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
-        gtk_box_append(GTK_BOX(menu_vbox), sep);
+        gtk_menu_shell_append(GTK_MENU_SHELL(menu), gtk_separator_menu_item_new());
     };
 
     auto prog = session->get_progress();
@@ -1478,8 +1419,8 @@ void MainWindow::on_row_right_clicked(GtkGestureClick* gesture, int, double x, d
     add_item("Copy URL to Clipboard", "edit-copy-symbolic", [](MainWindow* w, const std::string& sid) {
         auto s = QueueManager::instance().find_session(sid);
         if (s && w->get_widget()) {
-            GdkClipboard* clip = gtk_widget_get_clipboard(w->get_widget());
-            gdk_clipboard_set_text(clip, s->get_url().c_str());
+            GtkClipboard* clip = gtk_widget_get_clipboard(w->get_widget(), GDK_SELECTION_CLIPBOARD);
+            gtk_clipboard_set_text(clip, s->get_url().c_str(), -1);
         }
     });
 
@@ -1493,7 +1434,8 @@ void MainWindow::on_row_right_clicked(GtkGestureClick* gesture, int, double x, d
         w->on_properties_clicked();
     });
 
-    gtk_popover_popup(GTK_POPOVER(popover));
+    gtk_widget_show_all(menu);
+    gtk_menu_popup_at_pointer(GTK_MENU(menu), reinterpret_cast<GdkEvent*>(event));
 }
 
 void MainWindow::on_batch_import_clicked() {
