@@ -167,6 +167,11 @@ void UiAssets::apply_theme() {
         }
     }
 
+    if (g_getenv("OPENDM_DEBUG")) {
+        std::cerr << "OpenDM: stylesheet "
+                  << (css_path.empty() ? std::string("<built-in fallback>") : css_path) << std::endl;
+    }
+
     GtkCssProvider* provider = gtk_css_provider_new();
     if (!css_path.empty()) {
         GError* css_err = nullptr;
@@ -176,16 +181,17 @@ void UiAssets::apply_theme() {
         }
         if (css_err) g_error_free(css_err);
     } else {
-        // Fallback embedded minimal styling to ensure zero unstyled states
+        // Fallback when style.css is missing: layout-only rules that use the
+        // theme's own colours, like style.css itself.
         static const char* fallback_css = R"(
-            window, .idm-main-window { background-color: #242424; color: #eee; }
-            .idm-toolbar-box button, button.idm-toolbar-btn { background: transparent !important; border: none !important; box-shadow: none !important; color: #eee !important; }
-            button.suggested-action { background-color: #3584e4 !important; color: #fff !important; }
-            .idm-sidebar-frame { background-color: #1e1e1e; }
-            .idm-tree-row.selected { background-color: #3584e4; color: #fff; border-radius: 6px; }
-            .idm-table-header { background-color: #2a2a2a; }
-            .idm-col-header-box { padding: 6px 8px; }
-            .idm-col-header { font-size: 11px; font-weight: 600; color: #9a9996; }
+            .idm-toolbar-box { padding: 4px 6px; border-bottom: 1px solid @borders; }
+            .idm-sidebar-frame { border-right: 1px solid @borders; }
+            .idm-table-header { padding: 6px 12px; border-bottom: 1px solid @borders; }
+            .idm-tree-row, .idm-download-row { padding: 4px 8px; }
+            .idm-tree-row.selected, .idm-download-row.selected {
+                background-color: @theme_selected_bg_color; color: @theme_selected_fg_color; }
+            .idm-col-header { font-weight: bold; }
+            .idm-statusbar { padding: 2px 8px; border-top: 1px solid @borders; }
         )";
         gtk_css_provider_load_from_data(provider, fallback_css, -1, nullptr);
     }
@@ -193,7 +199,7 @@ void UiAssets::apply_theme() {
     gtk_style_context_add_provider_for_screen(
         gdk_screen_get_default(),
         GTK_STYLE_PROVIDER(provider),
-        GTK_STYLE_PROVIDER_PRIORITY_USER + 20);
+        GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
     g_object_unref(provider);
 }
 
