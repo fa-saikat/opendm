@@ -39,9 +39,16 @@ fi
 } > "${TOPDIR}/SPECS/opendm.spec"
 
 # 3. Build
+# RPM_DIST overrides the %{dist} tag, e.g. ".suse" for openSUSE builds
+# whose RPMs would otherwise have no distribution suffix.
+EXTRA_DEFINES=()
+if [ -n "${RPM_DIST:-}" ]; then
+    EXTRA_DEFINES+=(--define "dist ${RPM_DIST}")
+fi
 rpmbuild -ba \
     --define "_topdir ${TOPDIR}" \
     --define "opendm_version ${VERSION}" \
+    "${EXTRA_DEFINES[@]}" \
     "${TOPDIR}/SPECS/opendm.spec"
 
 mkdir -p "${DIST_DIR}"

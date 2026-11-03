@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    name: Build & test (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    container: ${{ matrix.image }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Ubuntu 22.04
+            image: ubuntu:22.04
+            cxxflags: ""
+          - name: Debian stable, hardened
+            image: debian:stable
+            # Same STL bounds checks Fedora/Arch/openSUSE enable by default.
+            cxxflags: "-O2 -D_GLIBCXX_ASSERTIONS"
+    steps:
+      - name: Install dependencies
+        run: |
+          apt-get update -qq
+          DEBIAN_FRONTEND=noninteractive apt-get install -y -qq git cmake ninja-build g++ \
+            pkg-config libgtk-3-dev libcurl4-openssl-dev zlib1g-dev libssl-dev \
+            nlohmann-json3-dev
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="${{ matrix.cxxflags }}"
+      - name: Build
+        run: cmake --build build
+      - name: Test
+        # YouTubeEngineTest depends on live youtube.com responses; see the job below.
+        run: ctest --test-dir build --output-on-failure --exclude-regex YouTubeEngineTest
+
+  youtube-live:
+    name: YouTube engine (live network, informational)
+    runs-on: ubuntu-latest
+    container: ubuntu:22.04
+    continue-on-error: true
+    steps:
+      - name: Install dependencies
+        run: |
+          apt-get update -qq
+          DEBIAN_FRONTEND=noninteractive apt-get install -y -qq git cmake ninja-build g++ \
+            pkg-config libgtk-3-dev libcurl4-openssl-dev zlib1g-dev nlohmann-json3-dev ca-certificates
+      - uses: actions/checkout@v4
+      - run: cmake -S . -B build -G Ninja && cmake --build build --target test_youtube_engine
+      - run: ./build/test_youtube_engine
+
+  packages:
+    name: Packages
+    uses: ./.github/workflows/packages.yml
+    with:
+      ref: ${{ github.sha }}

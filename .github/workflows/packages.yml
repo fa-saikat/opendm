@@ -1,0 +1,128 @@
+# Reusable workflow: builds every distribution package from one commit.
+# Called by ci.yml (every push / pull request) and release.yml (releases).
+name: Packages
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: Commit to build
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  deb:
+    name: .deb (Debian / Ubuntu)
+    runs-on: ubuntu-latest
+    # Built on the oldest supported base so the package installs on
+    # Ubuntu 22.04+ and Debian 12+.
+    container: ubuntu:22.04
+    steps:
+      - name: Install build dependencies
+        run: |
+          apt-get update -qq
+          DEBIAN_FRONTEND=noninteractive apt-get install -y -qq git cmake ninja-build g++ \
+            pkg-config dpkg-dev file libgtk-3-dev libcurl4-openssl-dev zlib1g-dev \
+            libssl-dev nlohmann-json3-dev
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - name: Build package
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          ./scripts/package_deb.sh
+      - name: Install and smoke-test
+        run: |
+          apt-get install -y -qq ./dist/*.deb
+          opendm --version
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pkg-deb
+          path: dist/*.deb
+          if-no-files-found: error
+
+  rpm-fedora:
+    name: .rpm (Fedora)
+    runs-on: ubuntu-latest
+    container: fedora:latest
+    steps:
+      - name: Install build dependencies
+        run: |
+          dnf install -y -q rpm-build git cmake make gcc-c++ gtk3-devel libcurl-devel \
+            zlib-devel json-devel desktop-file-utils
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - name: Build package
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          ./scripts/package_rpm.sh
+      - name: Install and smoke-test
+        run: |
+          dnf install -y -q ./dist/opendm-*.x86_64.rpm
+          opendm --version
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pkg-rpm-fedora
+          path: dist/*.rpm
+          if-no-files-found: error
+
+  rpm-opensuse:
+    name: .rpm (openSUSE Tumbleweed)
+    runs-on: ubuntu-latest
+    container: opensuse/tumbleweed
+    steps:
+      - name: Install build dependencies
+        run: |
+          zypper -n install rpm-build git tar gzip cmake make gcc-c++ gtk3-devel \
+            libcurl-devel zlib-devel nlohmann_json-devel desktop-file-utils
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - name: Build package
+        env:
+          RPM_DIST: .suse
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          ./scripts/package_rpm.sh
+      - name: Install and smoke-test
+        run: |
+          zypper -n --no-gpg-checks install --allow-unsigned-rpm ./dist/opendm-*.x86_64.rpm
+          opendm --version
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pkg-rpm-opensuse
+          # The Fedora job already publishes the source RPM.
+          path: dist/*.x86_64.rpm
+          if-no-files-found: error
+
+  arch:
+    name: .pkg.tar.zst (Arch Linux)
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      - name: Install build dependencies
+        run: |
+          pacman -Syu --noconfirm --needed base-devel cmake ninja git gtk3 curl zlib nlohmann-json
+          useradd -m builder
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - name: Build package (makepkg refuses to run as root)
+        run: |
+          chown -R builder "$GITHUB_WORKSPACE"
+          su builder -c "git config --global --add safe.directory '$GITHUB_WORKSPACE' && cd '$GITHUB_WORKSPACE' && ./scripts/package_arch.sh"
+      - name: Install and smoke-test
+        run: |
+          pacman -U --noconfirm $(ls dist/opendm-*.pkg.tar.zst | grep -v -- '-debug-')
+          opendm --version
+      - name: Drop debug package
+        run: rm -f dist/opendm-debug-*.pkg.tar.zst
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pkg-arch
+          path: dist/*.pkg.tar.zst
+          if-no-files-found: error

@@ -64,10 +64,13 @@ Run the automated test suite to ensure everything passes:
 ctest --test-dir build --output-on-failure
 ```
 
-### 4. Create a Branch
+### 4. Open an Issue, Then Create a Branch
+Every feature or bug starts as a GitHub issue. Work on a fresh branch named
+after it, for example:
 ```bash
-git checkout -b feature/your-feature-name
+git checkout -b feature/42-short-description   # or fix/42-..., packaging/42-..., ci/42-...
 ```
+Reference the issue in commits and the pull request (`Fixes #42`).
 
 ### 5. Coding Standards
 * **C++ Standard**: Modern C++20. Use RAII, smart pointers, atomic primitives, and thread-safe locking disciplines.
@@ -79,9 +82,28 @@ git checkout -b feature/your-feature-name
 ### 6. Submitting a Pull Request
 1. Commit your changes with clear, descriptive commit messages (e.g. `feat(core): ...`, `fix(ui): ...`).
 2. Verify all automated tests pass (`ctest --test-dir build --output-on-failure`).
-3. Push your branch to your fork (`git push origin feature/your-feature-name`).
-4. Open a Pull Request against `main` on the upstream repository [nadermkhan/opendm](https://github.com/nadermkhan/opendm).
+3. Push your branch (`git push origin feature/42-short-description`).
+4. Open a Pull Request against `main` of this repository ([fa-saikat/opendm](https://github.com/fa-saikat/opendm)). CI builds and tests it, and also builds the `.deb`, `.rpm` and Arch packages.
 5. Describe the problem your PR solves, what changes were made, and how you verified it.
+
+---
+
+## Releasing
+
+Releases are created **only** by merging a `release/X.Y.Z` branch into `main`.
+Pushing tags, pushing to `main`, or merging any other branch never publishes a
+release.
+
+1. Create `release/X.Y.Z` from `main`.
+2. Set `project(OpenDM VERSION X.Y.Z)` in `CMakeLists.txt` and add a
+   `<release>` entry to `data/io.github.opendm.OpenDM.metainfo.xml`.
+3. Open a pull request into `main` and merge it once CI is green.
+
+`.github/workflows/release.yml` then checks that the branch name matches the
+CMake version and that tag `vX.Y.Z` doesn't exist yet, builds the `.deb`
+(Ubuntu 22.04 base), Fedora and openSUSE `.rpm`s, the source RPM and the Arch
+package, and publishes them with `SHA256SUMS` as GitHub Release `vX.Y.Z`. See
+[docs/PACKAGING.md](docs/PACKAGING.md) for building packages locally.
 
 ---
 
