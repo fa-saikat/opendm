@@ -84,12 +84,13 @@ void GrabberDialog::setup_ui() {
     // Domain scope
     GtkWidget* lbl_domain = gtk_label_new("Domain Boundary:");
     gtk_label_set_xalign(GTK_LABEL(lbl_domain), 0.0f);
-    domain_combo_ = ui::combo_new_from_strings((const char*[]){
+    static const char* const kDomainScopes[] = {
         "Stay on same domain only",
         "Include all subdomains",
         "Any domain",
         nullptr
-    });
+    };
+    domain_combo_ = ui::combo_new_from_strings(kDomainScopes);
     gtk_grid_attach(GTK_GRID(grid), lbl_domain, 0, 2, 1, 1);
     gtk_grid_attach(GTK_GRID(grid), domain_combo_, 1, 2, 2, 1);
 
