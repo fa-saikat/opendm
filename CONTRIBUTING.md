@@ -41,7 +41,8 @@ Install the necessary build dependencies (Debian/Ubuntu example):
 ```bash
 sudo apt-get update
 sudo apt-get install -y cmake ninja-build g++ pkg-config \
-    libgtk-4-dev libcurl4-openssl-dev zlib1g-dev libssl-dev
+    libgtk-4-dev libcurl4-openssl-dev zlib1g-dev libssl-dev \
+    nlohmann-json3-dev
 ```
 
 ### 2. Fork & Clone
