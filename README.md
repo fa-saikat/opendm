@@ -3,14 +3,14 @@
 <div align="center">
 
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg?style=for-the-badge&logo=c%2B%2B)](https://en.wikipedia.org/wiki/C%2B%2B20)
-[![GTK4](https://img.shields.io/badge/GUI-GTK4-green.svg?style=for-the-badge&logo=gtk)](https://www.gtk.org/)
+[![GTK3](https://img.shields.io/badge/GUI-GTK3-green.svg?style=for-the-badge&logo=gtk)](https://www.gtk.org/)
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-orange.svg?style=for-the-badge)](LICENSE)
 [![Author: Nader Mahbub Khan](https://img.shields.io/badge/Author-Nader%20Mahbub%20Khan-blue?style=for-the-badge&logo=github)](https://github.com/nadermkhan)
 [![Platform: Linux](https://img.shields.io/badge/Platform-Linux-lightgrey.svg?style=for-the-badge&logo=linux)](https://kernel.org)
 [![Tests: 100% Passing](https://img.shields.io/badge/Tests-7%2F7%20Passed-brightgreen.svg?style=for-the-badge)](tests/)
 [![Zero Telemetry](https://img.shields.io/badge/Telemetry-0%25%20(None)-success.svg?style=for-the-badge)](SECURITY.md)
 
-**A high-performance, native C++20 / GTK4 recreation of Internet Download Manager (IDM).**  
+**A high-performance, native C++20 / GTK3 recreation of Internet Download Manager (IDM).**  
 *Created by [Nader Mahbub Khan](https://github.com/nadermkhan).*
 
 [Screenshots](#screenshots) • [Features](#features) • [Quick Start](#quick-start) • [Browser Integration](#browser-integration) • [Notice](#notice) • [License](#license--attribution)
@@ -64,18 +64,18 @@ It currently works only for Linux (Debian) and tested working in Firefox. Not te
 ```bash
 sudo apt-get update
 sudo apt-get install -y cmake ninja-build g++ pkg-config \
-    libgtk-4-dev libcurl4-openssl-dev zlib1g-dev libssl-dev \
+    libgtk-3-dev libcurl4-openssl-dev zlib1g-dev libssl-dev \
     nlohmann-json3-dev
 ```
 
 **Fedora / RHEL:**
 ```bash
-sudo dnf install cmake ninja-build gcc-c++ gtk4-devel libcurl-devel zlib-devel openssl-devel json-devel
+sudo dnf install cmake ninja-build gcc-c++ gtk3-devel libcurl-devel zlib-devel openssl-devel json-devel
 ```
 
 **Arch Linux:**
 ```bash
-sudo pacman -S cmake ninja gcc gtk4 curl zlib openssl nlohmann-json
+sudo pacman -S cmake ninja gcc gtk3 curl zlib openssl nlohmann-json
 ```
 
 ### 2. Build & Verify
@@ -140,7 +140,7 @@ opendm/
 ├── src/
 │   ├── core/         # ChunkManager, DownloadSession, MediaMuxer, ZipPreviewer
 │   ├── ipc/          # Local IPC server and browser Native Messaging host
-│   ├── ui/           # GTK4 user interface and custom widgets
+│   ├── ui/           # GTK3 user interface and custom widgets
 │   └── main.cpp      # CLI argument parsing and GTK application entry point
 ├── tests/            # Automated Catch2/CTest suites
 ├── extension_extracted/ # Browser WebExtension
