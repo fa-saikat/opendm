@@ -7,6 +7,9 @@
   <summary>High-speed dynamic multipart download manager and media grabber</summary>
   <description>
     <p>
+      OpenDM was created by Nader Mahbub Khan. This is a modified fork ported to GTK3.
+    </p>
+    <p>
       OpenDM is a high-speed, native Linux download accelerator engineered with the authentic
       Internet Download Manager (IDM) segmentation algorithms, native multi-browser integration,
       and high-definition video extraction.
@@ -27,10 +30,11 @@
     <binary>opendm-native-host</binary>
     <id>opendm.desktop</id>
   </provides>
-  <url type="homepage">https://github.com/nadermkhan/opendm</url>
-  <url type="bugtracker">https://github.com/nadermkhan/opendm/issues</url>
-  <developer id="io.github.opendm">
-    <name>OpenDM Development Team</name>
+  <url type="homepage">https://github.com/fa-saikat/opendm</url>
+  <url type="bugtracker">https://github.com/fa-saikat/opendm/issues</url>
+  <url type="vcs-browser">https://github.com/fa-saikat/opendm</url>
+  <developer id="io.github.nadermkhan">
+    <name>Nader Mahbub Khan (original author); GTK3 fork maintained by FA Saikat</name>
   </developer>
   <categories>
     <category>Network</category>
