@@ -57,3 +57,18 @@ version, and runs `rpmbuild -ba`. The binary and source RPMs are copied to
 `%check` runs `desktop-file-validate` and the test suite. `YouTubeEngineTest`
 is skipped because it needs live network access, which build systems such as
 mock/Koji/OBS don't provide.
+
+## Arch Linux and derivatives (`.pkg.tar.zst`)
+
+```bash
+sudo pacman -S --needed base-devel cmake ninja git gtk3 curl zlib nlohmann-json
+./scripts/package_arch.sh          # run as a regular user; makepkg refuses root
+sudo pacman -U dist/opendm-*-x86_64.pkg.tar.zst
+```
+
+`packaging/arch/PKGBUILD` follows the Arch packaging guidelines
+(`CMAKE_BUILD_TYPE=None`, so makepkg's flags apply) and is `namcap`-clean. Its
+`source` points at the GitHub tag archive (`v<version>`), as an AUR package
+would. `scripts/package_arch.sh` sets `pkgver` from CMake and provides that
+tarball locally from the working tree, so no published tag is needed. Extra
+arguments are passed to `makepkg` (for example `--syncdeps`).

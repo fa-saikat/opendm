@@ -1,0 +1,41 @@
+# Maintainer: FA Saikat <fahimabrar.saikat@gmail.com>
+# Contributor: Nader Mahbub Khan <muhammadnadermahbubkhan@gmail.com> (original author of OpenDM)
+#
+# OpenDM was created by Nader Mahbub Khan (https://github.com/nadermkhan/opendm).
+# This package builds the modified GTK3 fork; see NOTICE and AUTHORS.
+#
+# scripts/package_arch.sh sets pkgver from CMakeLists.txt and provides the
+# source tarball locally, so it builds without a published tag.
+
+pkgname=opendm
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="High-speed segmented download manager (GTK3 fork of OpenDM)"
+arch=('x86_64' 'aarch64')
+url="https://github.com/fa-saikat/opendm"
+license=('GPL-3.0-or-later')
+depends=('gtk3' 'glib2' 'cairo' 'gdk-pixbuf2' 'curl' 'zlib' 'hicolor-icon-theme' 'libgcc' 'libstdc++' 'glibc')
+makedepends=('cmake' 'ninja' 'nlohmann-json')
+optdepends=('ffmpeg: fallback muxer for media streams OpenDM cannot remux natively')
+source=("${pkgname}-${pkgver}.tar.gz::${url}/archive/refs/tags/v${pkgver}.tar.gz")
+sha256sums=('SKIP')
+
+build() {
+    cmake -S "${pkgname}-${pkgver}" -B build -G Ninja \
+        -DCMAKE_BUILD_TYPE=None \
+        -DCMAKE_INSTALL_PREFIX=/usr
+    cmake --build build
+}
+
+check() {
+    # YouTubeEngineTest needs live access to youtube.com.
+    ctest --test-dir build --output-on-failure --exclude-regex YouTubeEngineTest
+}
+
+package() {
+    DESTDIR="${pkgdir}" cmake --install build
+
+    cd "${pkgname}-${pkgver}"
+    install -Dm644 LICENSE NOTICE -t "${pkgdir}/usr/share/licenses/${pkgname}/"
+    install -Dm644 README.md AUTHORS -t "${pkgdir}/usr/share/doc/${pkgname}/"
+}
