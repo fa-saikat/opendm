@@ -9,10 +9,9 @@
 
 /* ---------- Main window layout ---------- */
 
+/* Spacing and the separator under the toolbar are set in code. */
 .idm-toolbar-box {
-    padding: 4px 6px;
     background-color: @theme_bg_color;
-    border-bottom: 1px solid @borders;
 }
 
 button.idm-toolbar-btn {
@@ -29,10 +28,6 @@ button.idm-toolbar-btn {
 .idm-toolbar-chevron {
     font-size: 0.75em;
     opacity: 0.7;
-}
-
-.idm-toolbar-separator {
-    margin: 6px 6px;
 }
 
 .idm-sidebar-frame {

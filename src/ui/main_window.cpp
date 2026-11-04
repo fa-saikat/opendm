@@ -270,13 +270,26 @@ void MainWindow::setup_menubar(GtkWidget* parent_box) {
 }
 
 void MainWindow::setup_toolbar(GtkWidget* parent_box) {
-    GtkWidget* tb_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+    // Spacing and separators are set on the widgets themselves so the toolbar
+    // stays readable under any GTK3 theme, with or without style.css.
+    GtkWidget* tb_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4);
     ui::add_class(tb_box, "idm-toolbar-box");
+    gtk_widget_set_margin_start(tb_box, 6);
+    gtk_widget_set_margin_end(tb_box, 6);
+    gtk_widget_set_margin_top(tb_box, 4);
+    gtk_widget_set_margin_bottom(tb_box, 4);
     gtk_container_add(GTK_CONTAINER(parent_box), tb_box);
+
+    // Theme-drawn line separating the toolbar from the content below
+    gtk_container_add(GTK_CONTAINER(parent_box), gtk_separator_new(GTK_ORIENTATION_HORIZONTAL));
 
     auto add_sep = [&]() {
         GtkWidget* sep = gtk_separator_new(GTK_ORIENTATION_VERTICAL);
         ui::add_class(sep, "idm-toolbar-separator");
+        gtk_widget_set_margin_start(sep, 4);
+        gtk_widget_set_margin_end(sep, 4);
+        gtk_widget_set_margin_top(sep, 4);
+        gtk_widget_set_margin_bottom(sep, 4);
         gtk_container_add(GTK_CONTAINER(tb_box), sep);
     };
 
