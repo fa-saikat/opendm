@@ -547,6 +547,8 @@ void MainWindow::setup_downloads_view(GtkWidget* paned) {
     add_hdr_col("DOMAIN", 11);     // Index 5
 
     gtk_container_add(GTK_CONTAINER(right_frame), header_box);
+    // Theme-drawn line under the column header, independent of style.css
+    gtk_container_add(GTK_CONTAINER(right_frame), gtk_separator_new(GTK_ORIENTATION_HORIZONTAL));
 
     // Scrollable downloads list
     GtkWidget* scroll = gtk_scrolled_window_new(nullptr, nullptr);
