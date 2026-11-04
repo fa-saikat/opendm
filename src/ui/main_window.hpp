@@ -65,6 +65,9 @@ private:
     GtkWidget* sidebar_vbox_{nullptr};
     GtkWidget* sidebar_list_{nullptr};
     GtkWidget* downloads_container_{nullptr};
+    GtkWidget* downloads_list_{nullptr};
+    bool rebuilding_list_{false};
+    bool syncing_category_selection_{false};
     GtkWidget* btn_resume_{nullptr};
     GtkWidget* btn_stop_{nullptr};
     GtkWidget* btn_delete_{nullptr};

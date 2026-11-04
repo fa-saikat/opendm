@@ -189,8 +189,6 @@ void UiAssets::apply_theme() {
             .idm-sidebar-frame { border-right: 1px solid @borders; }
             .idm-table-header { padding: 6px 12px; }
             .idm-tree-row, .idm-download-row { padding: 4px 8px; }
-            .idm-tree-row.selected, .idm-download-row.selected {
-                background-color: @theme_selected_bg_color; color: @theme_selected_fg_color; }
             .idm-col-header { font-weight: bold; }
             .idm-statusbar { padding: 2px 8px; border-top: 1px solid @borders; }
         )";
