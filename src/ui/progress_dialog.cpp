@@ -404,23 +404,21 @@ void ProgressDialog::on_draw_visualizer(GtkDrawingArea*, cairo_t* cr, int width,
     DownloadProgress p = self->session_->get_progress();
     int64_t total = p.total_size > 0 ? p.total_size : 1;
 
-    // 1. Recessed groove background matching IDM
-    cairo_set_source_rgb(cr, 0.94, 0.95, 0.96); // #F0F2F5 (Silver/light recessed background)
+    // 1. Groove background and border in the theme's colours (light or dark)
+    GdkRGBA base{0.94, 0.95, 0.96, 1.0};
+    GdkRGBA border{0.50, 0.53, 0.56, 1.0};
+    if (self->visualizer_area_) {
+        GtkStyleContext* ctx = gtk_widget_get_style_context(self->visualizer_area_);
+        gtk_style_context_lookup_color(ctx, "theme_base_color", &base);
+        gtk_style_context_lookup_color(ctx, "borders", &border);
+    }
+    gdk_cairo_set_source_rgba(cr, &base);
     cairo_rectangle(cr, 0, 0, width, height);
     cairo_fill(cr);
 
-    // Beveled sunken borders
     cairo_set_line_width(cr, 1.0);
-    cairo_set_source_rgb(cr, 0.50, 0.53, 0.56);
-    cairo_move_to(cr, 0.5, height - 0.5);
-    cairo_line_to(cr, 0.5, 0.5);
-    cairo_line_to(cr, width - 0.5, 0.5);
-    cairo_stroke(cr);
-
-    cairo_set_source_rgb(cr, 0.85, 0.87, 0.90);
-    cairo_move_to(cr, width - 0.5, 0.5);
-    cairo_line_to(cr, width - 0.5, height - 0.5);
-    cairo_line_to(cr, 0.5, height - 0.5);
+    gdk_cairo_set_source_rgba(cr, &border);
+    cairo_rectangle(cr, 0.5, 0.5, width - 1.0, height - 1.0);
     cairo_stroke(cr);
 
     if (p.chunks.empty()) {

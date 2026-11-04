@@ -1,753 +1,261 @@
-/* OpenDM - Modern Native GTK3 Desktop Theme (Adwaita Dark Aesthetic) - DPI Responsive */
+/* OpenDM - GTK3 stylesheet
+ *
+ * OpenDM follows the desktop's GTK3 theme (light or dark). This file only
+ * adds layout: spacing, borders and row selection. Every colour comes from
+ * the theme's named colours (@theme_*, @borders), so the stylesheet never
+ * fights the active theme. Status badges are the only fixed accent colours;
+ * their translucent backgrounds work on both light and dark themes.
+ */
 
-window, .idm-main-window {
-    background-color: #242424;
-    color: #eeeeee;
-}
+/* ---------- Main window layout ---------- */
 
-paned > separator {
-    background-color: #303030;
-    min-width: 1px;
-    border-style: none;
-    margin: 0;
-}
-
-scrolledwindow, viewport {
-    background-color: transparent;
-    color: #eeeeee;
-    border-style: none;
-}
-
-/* Modern GTK Menubar */
-menubar {
-    background-color: #2e2e2e;
-    color: #e0e0e0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-    padding: 0.15rem 0.5rem;
-    font-size: 0.9rem;
-}
-
-menubar > menuitem {
-    padding: 0.25rem 0.6rem;
-    color: #d0d0d0;
-    border-radius: 0.3rem;
-    transition: background-color 120ms ease;
-}
-
-menubar > menuitem:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-    color: #ffffff;
-}
-
-/* Modern GTK Toolbar */
 .idm-toolbar-box {
-    background-color: #2e2e2e;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    padding: 0.35rem 0.5rem;
+    padding: 4px 6px;
+    background-color: @theme_bg_color;
+    border-bottom: 1px solid @borders;
 }
 
-window.idm-main-window .idm-toolbar-box button,
-window.idm-main-window button.idm-toolbar-btn,
-.idm-toolbar-btn {
-    background: none;
-    background-color: transparent;
-    border-style: none;
-    border-width: 0;
-    border-radius: 0.4rem;
-    padding: 0.3rem 0.5rem;
-    margin: 0 0.1rem;
-    box-shadow: none;
-    outline-style: none;
-    transition: background-color 150ms ease, transform 100ms ease;
-    color: #eeeeee;
-}
-
-window.idm-main-window .idm-toolbar-box button:hover,
-window.idm-main-window button.idm-toolbar-btn:hover {
-    background-color: rgba(255, 255, 255, 0.09);
-    color: #ffffff;
-}
-
-window.idm-main-window .idm-toolbar-box button:active,
-window.idm-main-window button.idm-toolbar-btn:active {
-    background-color: rgba(255, 255, 255, 0.16);
-}
-
-window.idm-main-window .idm-toolbar-box button:disabled,
-window.idm-main-window button.idm-toolbar-btn:disabled {
-    opacity: 0.35;
-}
-
-window.idm-main-window .idm-toolbar-box button.suggested-action,
-window.idm-main-window button.idm-toolbar-btn.suggested-action {
-    background-color: #3584e4;
-    color: #ffffff;
-}
-
-window.idm-main-window .idm-toolbar-box button.suggested-action:hover,
-window.idm-main-window button.idm-toolbar-btn.suggested-action:hover {
-    background-color: #4791ea;
-}
-
-window.idm-main-window .idm-toolbar-box button.suggested-action:active,
-window.idm-main-window button.idm-toolbar-btn.suggested-action:active {
-    background-color: #1c71d8;
+button.idm-toolbar-btn {
+    padding: 4px 8px;
+    margin: 0 1px;
+    min-width: 56px;
+    border-radius: 6px;
 }
 
 .idm-toolbar-label {
-    font-size: 0.82rem;
-    font-weight: 500;
-    color: inherit;
-    margin-top: 0.15rem;
+    font-size: 0.85em;
 }
 
 .idm-toolbar-chevron {
-    font-size: 0.75rem;
-    color: rgba(255, 255, 255, 0.6);
-    margin-left: 0.15rem;
+    font-size: 0.75em;
+    opacity: 0.7;
 }
 
 .idm-toolbar-separator {
-    background-color: rgba(255, 255, 255, 0.12);
-    min-width: 1px;
-    margin: 0.4rem 0.25rem;
+    margin: 6px 6px;
 }
 
-/* Modern GTK Navigation Sidebar */
 .idm-sidebar-frame {
-    background-color: #1e1e1e;
-    border-right: 1px solid rgba(255, 255, 255, 0.06);
-    padding: 0.5rem 0;
+    background-color: @theme_bg_color;
+    border-right: 1px solid @borders;
 }
 
 .idm-category-header-box {
-    padding: 0.3rem 0.8rem 0.5rem 0.8rem;
+    padding: 8px 8px 6px 12px;
 }
 
 .idm-category-header-label {
-    font-size: 0.8rem;
-    font-weight: 700;
-    letter-spacing: 0.04rem;
-    color: #888888;
+    font-size: 0.8em;
+    font-weight: bold;
+    opacity: 0.7;
 }
 
-window.idm-main-window .idm-sidebar-close-btn,
-window.idm-main-window button.idm-sidebar-close-btn {
-    background: none;
-    background-color: transparent;
-    border-style: none;
-    border-width: 0;
-    box-shadow: none;
-    border-radius: 0.3rem;
-    padding: 0.15rem 0.4rem;
-    color: #888888;
-    font-size: 1rem;
-    transition: background-color 150ms ease, color 150ms ease;
-}
-
-window.idm-main-window .idm-sidebar-close-btn:hover,
-window.idm-main-window button.idm-sidebar-close-btn:hover {
-    color: #ffffff;
-    background-color: rgba(255, 255, 255, 0.1);
+button.idm-sidebar-close-btn {
+    padding: 0 6px;
+    min-height: 20px;
+    min-width: 20px;
 }
 
 .idm-category-list {
-    padding: 0 0.4rem;
+    padding: 2px 6px 6px 6px;
 }
 
 .idm-tree-row {
-    padding: 0.35rem 0.55rem;
-    margin: 0.1rem 0;
-    border-radius: 0.4rem;
-    color: #cccccc;
-    font-size: 0.95rem;
-    font-weight: 500;
-    transition: background-color 120ms ease, color 120ms ease;
-}
-
-.idm-tree-row:hover:not(.selected) {
-    background-color: rgba(255, 255, 255, 0.06);
-    color: #ffffff;
+    padding: 4px 6px;
+    border-radius: 6px;
 }
 
 .idm-tree-row.selected {
-    background-color: #3584e4;
-    color: #ffffff;
+    background-color: @theme_selected_bg_color;
+    color: @theme_selected_fg_color;
 }
 
-window.idm-main-window .idm-tree-arrow-btn,
-window.idm-main-window button.idm-tree-arrow-btn {
-    background: none;
-    background-color: transparent;
-    border-style: none;
-    border-width: 0;
-    box-shadow: none;
-    padding: 0 0.25rem;
-    min-width: 1rem;
-    min-height: 1rem;
-    font-size: 0.75rem;
-    color: #888888;
+button.idm-tree-arrow-btn {
+    padding: 0;
+    min-width: 16px;
+    min-height: 16px;
 }
 
-window.idm-main-window .idm-tree-arrow-btn:hover,
-window.idm-main-window button.idm-tree-arrow-btn:hover {
-    color: #ffffff;
-}
+/* ---------- Download table ---------- */
 
-/* Downloads Table Frame */
 .idm-table-frame {
-    background-color: #242424;
+    background-color: @theme_base_color;
 }
 
 .idm-table-header {
-    background-color: #2a2a2a;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    min-height: 2rem;
-    padding: 0.3rem 0.8rem;
+    padding: 6px 12px;
+    background-color: @theme_bg_color;
+    border-bottom: 1px solid @borders;
 }
 
 .idm-col-header {
-    font-size: 0.8rem;
-    font-weight: 600;
-    letter-spacing: 0.04rem;
-    color: #9a9996;
+    font-size: 0.8em;
+    font-weight: bold;
+    opacity: 0.75;
 }
 
 .idm-download-row {
-    min-height: 2.5rem;
-    padding: 0.25rem 0.8rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-    background-color: transparent;
-    transition: background-color 100ms ease;
-}
-
-.idm-download-row:hover:not(.selected) {
-    background-color: rgba(255, 255, 255, 0.04);
+    padding: 6px 12px;
+    border-bottom: 1px solid alpha(@borders, 0.5);
 }
 
 .idm-download-row.selected {
-    background-color: rgba(53, 132, 228, 0.25);
-    border-bottom: 1px solid rgba(53, 132, 228, 0.4);
+    background-color: @theme_selected_bg_color;
+    color: @theme_selected_fg_color;
 }
 
-.idm-download-cell {
-    font-size: 0.95rem;
-    color: #eeeeee;
+.idm-badge {
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-size: 0.85em;
+    font-weight: bold;
 }
 
-/* Empty State */
+.idm-badge-complete    { color: #26a269; background-color: alpha(#26a269, 0.15); }
+.idm-badge-downloading { color: #1c71d8; background-color: alpha(#1c71d8, 0.15); }
+.idm-badge-paused      { color: #c64600; background-color: alpha(#c64600, 0.15); }
+.idm-badge-queued      { color: #77767b; background-color: alpha(#77767b, 0.15); }
+
+.idm-download-row.selected .idm-badge {
+    color: @theme_selected_fg_color;
+    background-color: alpha(@theme_selected_fg_color, 0.2);
+}
+
 .idm-empty-state-box {
-    padding: 4rem 1.5rem;
+    padding: 24px;
 }
 
-.idm-empty-state-icon {
-    opacity: 0.25;
-    color: #ffffff;
-    margin-bottom: 1rem;
+.idm-empty-state-icon,
+.idm-empty-state-subtitle {
+    opacity: 0.55;
 }
 
 .idm-empty-state-title {
-    font-size: 1.35rem;
-    font-weight: 700;
-    color: #ffffff;
-    margin-bottom: 0.4rem;
+    font-size: 1.3em;
+    font-weight: bold;
 }
 
-.idm-empty-state-subtitle {
-    font-size: 0.95rem;
-    color: #9a9996;
-    margin-bottom: 1.5rem;
-}
+/* ---------- Status bar ---------- */
 
-/* Status Badges */
-.idm-badge {
-    border-radius: 1rem;
-    padding: 0.15rem 0.55rem;
-    font-size: 0.8rem;
-    font-weight: 600;
-}
-
-.idm-badge-complete {
-    background-color: rgba(46, 194, 126, 0.15);
-    color: #57e389;
-}
-
-.idm-badge-downloading {
-    background-color: rgba(53, 132, 228, 0.2);
-    color: #62a0ea;
-}
-
-.idm-badge-paused {
-    background-color: rgba(246, 97, 81, 0.15);
-    color: #ff7b63;
-}
-
-.idm-badge-queued {
-    background-color: rgba(255, 255, 255, 0.1);
-    color: #c0bfbc;
-}
-
-/* Bottom Status Bar */
 .idm-statusbar {
-    background-color: #1e1e1e;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
-    min-height: 1.8rem;
-    padding: 0.15rem 0.8rem;
+    padding: 2px 8px;
+    background-color: @theme_bg_color;
+    border-top: 1px solid @borders;
 }
 
 .idm-status-panel {
-    padding: 0.15rem 0.5rem;
-    font-size: 0.85rem;
-    color: #9a9996;
+    padding: 2px 8px;
+    font-size: 0.9em;
 }
 
-window.idm-main-window .idm-status-panel-btn,
-window.idm-main-window button.idm-status-panel-btn {
-    background: none;
-    background-color: transparent;
-    border-style: none;
-    border-width: 0;
-    box-shadow: none;
-    border-radius: 0.3rem;
-    padding: 0.15rem 0.6rem;
-    color: #9a9996;
-    font-size: 0.85rem;
-    transition: background-color 150ms ease, color 150ms ease;
+button.idm-status-panel-btn {
+    padding: 0 8px;
+    min-height: 20px;
+    font-size: 0.9em;
 }
 
-window.idm-main-window .idm-status-panel-btn:hover,
-window.idm-main-window button.idm-status-panel-btn:hover {
-    color: #ffffff;
-    background-color: rgba(255, 255, 255, 0.08);
-}
-
-/* Progress Dialog Multi-track Visualizer */
-.idm-visualizer-canvas {
-    background-color: #1A1A1A;
-    border: 1px solid #37474F;
-    border-radius: 0.4rem;
-    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4);
-}
-
-.idm-progress-header {
-    background-color: #252526;
-    border: 1px solid #3E3E42;
-    border-radius: 0.4rem;
-    padding: 0.6rem 0.9rem;
-    color: #D4D4D4;
-}
-
-progressbar > trough {
-    min-height: 0.8rem;
-    border-radius: 0.4rem;
-    background-color: #2D2D30;
-    border-style: none;
-}
-
-progressbar > progress {
-    border-radius: 0.4rem;
-    background-color: #3584e4;
-    border-style: none;
-}
-
-/* Developer Appreciation Dialog */
-.idm-apprec-window {
-    background-color: #242424;
-    color: #eeeeee;
-}
-
-.idm-apprec-icon {
-    color: #e5a50a;
-}
-
-.idm-apprec-card {
-    background-color: #2a2a2a;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 0.6rem;
-    padding: 1rem 1.2rem;
-}
-
-.idm-apprec-name {
-    font-size: 1.15rem;
-    font-weight: 700;
-    color: #ffffff;
-}
-
-.idm-apprec-role {
-    font-size: 0.88rem;
-    color: #3584e4;
-    font-weight: 600;
-}
-
-.idm-apprec-link {
-    font-size: 0.85rem;
-    color: #9a9996;
-}
-
-.idm-apprec-serial {
-    font-family: monospace;
-    font-size: 0.82rem;
-    background-color: #1e1e1e;
-    color: #57e389;
-    border: 1px dashed rgba(87, 227, 137, 0.4);
-    border-radius: 0.4rem;
-    padding: 0.35rem 0.6rem;
-}
-
-.idm-apprec-feedback {
-    font-size: 0.88rem;
-    font-weight: 500;
-    padding: 0.5rem 0.8rem;
-    border-radius: 0.4rem;
-    background-color: rgba(255, 255, 255, 0.04);
-    color: #d0d0d0;
-}
-
-.idm-apprec-feedback.success {
-    background-color: rgba(46, 194, 126, 0.15);
-    color: #57e389;
-    border: 1px solid rgba(46, 194, 126, 0.3);
-}
-
-.idm-apprec-feedback.error {
-    background-color: rgba(224, 27, 36, 0.15);
-    color: #ff7b63;
-    border: 1px solid rgba(224, 27, 36, 0.3);
-}
-
-.idm-btn-appreciate {
-    font-size: 1.05rem;
-    font-weight: 700;
-    padding: 0.65rem 1.8rem;
-    border-radius: 0.5rem;
-    background-color: #3584e4;
-    color: #ffffff;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
-}
-
-.idm-btn-appreciate:hover {
-    background-color: #1c71d8;
-}
-
-.idm-btn-appreciate:active {
-    background-color: #1a5fb4;
-}
-
-/* About Dialog */
-.idm-about-window {
-    background-color: #242424;
-    color: #eeeeee;
-}
-
-.idm-about-icon {
-    color: #3584e4;
-}
-
-.idm-about-sub {
-    font-size: 0.85rem;
-    color: #9a9996;
-}
-
-.idm-about-desc {
-    font-size: 0.92rem;
-    color: #deddda;
-}
-
-.idm-about-card {
-    background-color: #2a2a2a;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 0.6rem;
-    padding: 0.9rem 1.1rem;
-}
-
-.idm-about-role {
-    font-size: 0.88rem;
-    color: #3584e4;
-    font-weight: 600;
-}
-
-.idm-about-link {
-    font-size: 0.82rem;
-    color: #77767b;
-}
-
-.idm-about-license {
-    font-size: 0.8rem;
-    color: #9a9996;
-}
-
-.idm-btn-about-close {
-    font-size: 0.95rem;
-    font-weight: 600;
-    padding: 0.45rem 1.5rem;
-    border-radius: 0.4rem;
-}
-
-/* Download File Info Dialog (Authentic IDM Aesthetic) */
-.idm-download-info-window {
-    background-color: #242424;
-    color: #eeeeee;
-}
-
-.idm-info-vbox {
-    background-color: #262626;
-    border-radius: 0.4rem;
-}
-
-.idm-info-label {
-    font-size: 0.88rem;
-    font-weight: 600;
-    color: #e0e0e0;
-    min-width: 70px;
-}
-
-.idm-info-entry {
-    background-color: #1a1a1a;
-    color: #ffffff;
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    border-radius: 0.3rem;
-    padding: 0.3rem 0.5rem;
-    font-size: 0.88rem;
-}
-
-.idm-info-entry:focus {
-    border-color: #3584e4;
-    box-shadow: 0 0 0 1px #3584e4;
-}
-
-.idm-info-entry-sub {
-    background-color: #181818;
-    color: #dedede;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 0.25rem;
-    padding: 0.25rem 0.45rem;
-    font-size: 0.82rem;
-}
-
-.idm-remember-frame {
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    border-radius: 0.35rem;
-    background-color: rgba(255, 255, 255, 0.03);
-}
-
-.idm-remember-chk,
-.idm-remember-chk label,
-.idm-remember-frame checkbutton,
-.idm-remember-frame checkbutton label {
-    color: #f2f2f2;
-    font-weight: 500;
-    font-size: 0.86rem;
-}
-
-.idm-info-filesize {
-    font-size: 0.95rem;
-    font-weight: 700;
-    color: #57e389;
-    margin-top: 4px;
-    margin-bottom: 4px;
-}
-
-.idm-info-btn {
-    font-size: 0.88rem;
-    font-weight: 500;
-    padding: 0.35rem 0.8rem;
-    border-radius: 0.35rem;
-    background-color: #323232;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    color: #eeeeee;
-}
-
-.idm-info-btn:hover {
-    background-color: #3e3e3e;
-    color: #ffffff;
-}
-
-.idm-info-btn.suggested-action {
-    background-color: #3584e4;
-    border-color: #1c71d8;
-    color: #ffffff;
-}
-
-.idm-info-btn.suggested-action:hover {
-    background-color: #4791ea;
-}
-
-.idm-btn-mini {
-    min-width: 28px;
-    min-height: 28px;
-    padding: 0 0.4rem;
-    font-weight: 700;
-    background-color: #323232;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 0.3rem;
-    color: #eeeeee;
-}
-
-.idm-btn-mini:hover {
-    background-color: #3e3e3e;
-}
-
-/* Context Menu */
-.idm-context-menu {
-    background-color: #2b2d30;
-    border: 1px solid #3c3f41;
-    border-radius: 6px;
-    padding: 4px;
-}
-
-.idm-context-item {
-    font-size: 0.88rem;
-    font-weight: 500;
-    padding: 0.4rem 0.8rem;
-    border-radius: 4px;
-    color: #e0e0e0;
-}
-
-.idm-context-item:hover {
-    background-color: #3584e4;
-    color: #ffffff;
-}
-
-/* Authentic IDM Progress Dialog Aesthetic */
-.idm-progress-window {
-    background-color: #242424;
-    color: #eeeeee;
-}
+/* ---------- Progress dialog ---------- */
 
 .idm-metadata-frame {
-    background-color: #2a2a2a;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 4px;
-}
-
-.idm-url-label {
-    font-size: 0.88rem;
-    font-weight: 500;
-    color: #f2f2f2;
-    padding-bottom: 2px;
+    padding: 8px 10px;
+    border: 1px solid @borders;
+    border-radius: 6px;
+    background-color: @theme_base_color;
 }
 
 .idm-meta-title {
-    font-size: 0.86rem;
-    font-weight: 600;
-    color: #a0a0a0;
-    min-width: 130px;
-}
-
-.idm-meta-val {
-    font-size: 0.86rem;
-    color: #e0e0e0;
+    font-weight: bold;
 }
 
 .idm-status-blue {
-    font-size: 0.88rem;
-    font-weight: 700;
-    color: #3584e4;
+    color: @theme_selected_bg_color;
+    font-weight: bold;
 }
 
-/* Authentic IDM Green Progress Bar */
-.idm-main-progress-bar {
-    min-height: 16px;
-}
-
-.idm-main-progress-bar trough {
-    min-height: 16px;
-    background-color: #1a1a1a;
-    border: 1px solid rgba(255, 255, 255, 0.22);
-    border-radius: 2px;
-    padding: 1px;
-}
-
-.idm-main-progress-bar progress {
+progressbar.idm-main-progress-bar trough,
+progressbar.idm-main-progress-bar progress {
     min-height: 14px;
-    background: linear-gradient(to bottom, #2ee02e 0%, #00bb00 45%, #009900 70%, #007700 100%);
-    border: 1px solid #006600;
-    border-radius: 1px;
 }
 
-/* Dialog Action Buttons */
-.idm-dialog-btn {
-    min-width: 75px;
-    padding: 0.35rem 0.9rem;
-    font-size: 0.88rem;
-    font-weight: 500;
-    background-color: #323232;
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    border-radius: 3px;
-    color: #eeeeee;
-    transition: background-color 100ms ease;
-}
-
-.idm-dialog-btn:hover {
-    background-color: #3e3e3e;
-    color: #ffffff;
-}
-
-.idm-dialog-btn:active {
-    background-color: #282828;
-}
-
-.idm-btn-details {
-    font-size: 0.84rem;
-}
-
-/* Connection Visualizer Section */
 .idm-conns-title {
-    font-size: 0.84rem;
-    font-weight: 600;
-    color: #a0a0a0;
-    margin-top: 4px;
-    margin-bottom: 2px;
+    font-weight: bold;
+    opacity: 0.8;
 }
 
 .idm-visualizer-canvas {
-    border-radius: 2px;
-    min-height: 18px;
+    border: 1px solid @borders;
 }
 
 .idm-table-border-frame {
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 3px;
-    background-color: #1e1e1e;
+    border: 1px solid @borders;
 }
 
 .idm-conns-header {
-    background-color: #282828;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.10);
-    padding: 3px 0;
+    padding: 4px 0;
+    background-color: @theme_bg_color;
+    border-bottom: 1px solid @borders;
 }
 
 .idm-conns-hcell {
-    font-size: 0.82rem;
-    font-weight: 700;
-    color: #cccccc;
-}
-
-.idm-conns-scrolled {
-    background-color: #1c1c1c;
+    font-weight: bold;
+    font-size: 0.9em;
 }
 
 .idm-conns-table {
-    background-color: #1c1c1c;
+    background-color: @theme_base_color;
 }
 
 .idm-conns-row {
-    padding: 1px 0;
-    min-height: 19px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    padding: 3px 0;
 }
 
 .idm-conns-row.even {
-    background-color: rgba(255, 255, 255, 0.02);
+    background-color: alpha(@theme_fg_color, 0.04);
 }
 
 .idm-conns-cell {
-    font-size: 0.82rem;
-    font-family: monospace, sans-serif;
-    color: #e0e0e0;
+    font-size: 0.9em;
 }
 
+/* ---------- Download info dialog ---------- */
+
+.idm-info-vbox {
+    padding: 4px;
+}
+
+.idm-info-label {
+    font-weight: bold;
+}
+
+.idm-remember-frame {
+    padding: 6px 8px;
+    border: 1px solid @borders;
+    border-radius: 6px;
+}
+
+.idm-info-filesize {
+    color: #26a269;
+    font-weight: bold;
+}
+
+/* ---------- About dialog ---------- */
+
+.idm-about-sub,
+.idm-about-role,
+.idm-about-link,
+.idm-about-license {
+    opacity: 0.75;
+}
+
+.idm-about-card {
+    padding: 12px 14px;
+    border: 1px solid @borders;
+    border-radius: 8px;
+    background-color: @theme_base_color;
+}
+
+/* ---------- Options ---------- */
+
 .idm-options-frame {
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 4px;
+    padding: 8px;
 }
