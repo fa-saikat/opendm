@@ -16,38 +16,23 @@
 #include <unordered_set>
 #include <cctype>
 #include <iomanip>
+#include <nlohmann/json.hpp>
 
 namespace opendm {
 
 namespace {
 
+// Returns a top-level field of a JSON object as a string: strings unescaped,
+// numbers and booleans in their JSON spelling ("42", "true"). Returns "" when
+// the request isn't a JSON object or lacks the field.
 std::string extract_json_field(const std::string& json, const std::string& field) {
-    std::string key = "\"" + field + "\"";
-    size_t pos = json.find(key);
-    if (pos == std::string::npos) return "";
-
-    pos = json.find(':', pos + key.length());
-    if (pos == std::string::npos) return "";
-
-    // Skip whitespace
-    while (pos < json.length() && (json[pos] == ':' || json[pos] == ' ' || json[pos] == '\t')) {
-        pos++;
-    }
-
-    if (pos >= json.length()) return "";
-
-    if (json[pos] == '\"') {
-        size_t end = json.find('\"', pos + 1);
-        if (end == std::string::npos) return "";
-        return json.substr(pos + 1, end - pos - 1);
-    } else {
-        size_t end = json.find_first_of(",}\n\r", pos);
-        if (end == std::string::npos) end = json.length();
-        std::string val = json.substr(pos, end - pos);
-        // Trim
-        while (!val.empty() && (val.back() == ' ' || val.back() == '\t')) val.pop_back();
-        return val;
-    }
+    auto doc = nlohmann::json::parse(json, nullptr, /*allow_exceptions=*/false);
+    if (!doc.is_object()) return "";
+    auto it = doc.find(field);
+    if (it == doc.end() || it->is_null()) return "";
+    if (it->is_string()) return it->get<std::string>();
+    if (it->is_primitive()) return it->dump();
+    return "";
 }
 
 } // namespace
@@ -879,7 +864,7 @@ std::string IpcServer::handle_request(const std::string& request) {
                     pending_prompts_.push_back(prompt_info);
                 }
                 std::cout << "OpenDM IPC: Intercepted download from browser, prompting user: " << url << " (" << filename << ", size: " << file_size << ")" << std::endl;
-                return "{\"status\": \"prompting\", \"filename\": \"" + filename + "\"}";
+                return "{\"status\": \"prompting\", \"filename\": \"" + json_escape_str(filename) + "\"}";
             } else {
                 std::string path = (std::filesystem::path(getenv("HOME") ? getenv("HOME") : "/home/nader") / "Downloads").string();
                 std::string dest_file = path + "/" + filename;
@@ -897,7 +882,7 @@ std::string IpcServer::handle_request(const std::string& request) {
 
                 QueueManager::instance().get_main_queue().add_session(session, true);
                 std::cout << "OpenDM IPC: Headless intercepted download from browser: " << url << " -> " << dest_file << std::endl;
-                return "{\"status\": \"ok\", \"id\": \"" + id + "\", \"filename\": \"" + filename + "\"}";
+                return "{\"status\": \"ok\", \"id\": \"" + id + "\", \"filename\": \"" + json_escape_str(filename) + "\"}";
             }
         }
     }
@@ -916,6 +901,8 @@ std::string IpcServer::handle_request(const std::string& request) {
         std::string no_prompt_str = extract_json_field(request, "no_prompt");
         std::string req_audio = extract_json_field(request, "audio_url");
         std::string user_agent = extract_json_field(request, "user_agent");
+        std::string referer = extract_json_field(request, "referer");
+        std::string cookies = extract_json_field(request, "cookies");
 
         if (raw_url.empty()) {
             return "{\"status\": \"error\", \"message\": \"Missing URL\"}";
@@ -960,6 +947,8 @@ std::string IpcServer::handle_request(const std::string& request) {
             prompt_info.destination_dir = path;
             prompt_info.category = QueueManager::detect_category(filename);
             prompt_info.user_agent = user_agent;
+            prompt_info.referer = referer;
+            prompt_info.cookies = cookies;
 
             std::lock_guard<std::mutex> lock(prompt_mutex_);
             if (prompt_callback_) {
@@ -967,7 +956,7 @@ std::string IpcServer::handle_request(const std::string& request) {
             } else {
                 pending_prompts_.push_back(prompt_info);
             }
-            return "{\"status\": \"prompting\", \"filename\": \"" + filename + "\"}";
+            return "{\"status\": \"prompting\", \"filename\": \"" + json_escape_str(filename) + "\"}";
         }
 
         if (path.empty()) {
@@ -985,6 +974,8 @@ std::string IpcServer::handle_request(const std::string& request) {
         if (!user_agent.empty()) {
             session->set_header("User-Agent", user_agent);
         }
+        if (!referer.empty()) session->set_header("Referer", referer);
+        if (!cookies.empty()) session->set_header("Cookie", cookies);
         SiteLogonManager::instance().apply_to_session(*session, url);
 
         std::string connections_str = extract_json_field(request, "connections");
@@ -1007,7 +998,7 @@ std::string IpcServer::handle_request(const std::string& request) {
         bool start_now = (add_only_str != "true");
         QueueManager::instance().get_main_queue().add_session(session, start_now);
 
-        return "{\"status\": \"ok\", \"id\": \"" + id + "\", \"filename\": \"" + filename + "\"}";
+        return "{\"status\": \"ok\", \"id\": \"" + id + "\", \"filename\": \"" + json_escape_str(filename) + "\"}";
     } else if (action == "start_queue") {
         QueueManager::instance().get_main_queue().start_queue();
         return "{\"status\": \"ok\", \"message\": \"Queue started\"}";

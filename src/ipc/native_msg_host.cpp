@@ -1,5 +1,7 @@
 #include "ipc_server.hpp"
 #include "../core/youtube_engine.hpp"
+#include "version.hpp"
+#include <nlohmann/json.hpp>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -139,12 +141,28 @@ int main(int argc, char* argv[]) {
     signal(SIGCHLD, SIG_IGN); // Prevent zombie processes
     std::ios_base::sync_with_stdio(false);
 
-    std::ofstream log("/tmp/opendm_native_host.log", std::ios::app);
-    log << "[NATIVE_HOST] Started. argc=" << argc << std::endl;
-    for (int i = 0; i < argc; ++i) {
-        log << "  argv[" << i << "] = " << argv[i] << std::endl;
+    // Messages carry URLs and cookies, so nothing is logged unless
+    // OPENDM_DEBUG is set, and then only to a private file in the user's cache.
+    std::ofstream log;
+    if (const char* dbg = getenv("OPENDM_DEBUG"); dbg && *dbg) {
+        const char* xdg = getenv("XDG_CACHE_HOME");
+        const char* home = getenv("HOME");
+        std::filesystem::path dir = (xdg && *xdg) ? std::filesystem::path(xdg)
+                                  : std::filesystem::path(home ? home : "/tmp") / ".cache";
+        dir /= "opendm";
+        std::error_code ec;
+        std::filesystem::create_directories(dir, ec);
+        std::filesystem::path file = dir / "native-host.log";
+        int fd = open(file.c_str(), O_WRONLY | O_CREAT | O_APPEND, 0600);
+        if (fd >= 0) {
+            close(fd);
+            log.open(file, std::ios::app);
+        }
+        log << "[NATIVE_HOST] Started. argc=" << argc << std::endl;
+        for (int i = 0; i < argc; ++i) {
+            log << "  argv[" << i << "] = " << argv[i] << std::endl;
+        }
     }
-    log.flush();
 
     std::string incoming;
     while (opendm::read_native_message(incoming)) {
@@ -226,6 +244,14 @@ int main(int argc, char* argv[]) {
         }
 
         // Standard JSON messaging
+        auto parsed = nlohmann::json::parse(incoming, nullptr, /*allow_exceptions=*/false);
+        if (parsed.is_object() && parsed.contains("action") && parsed["action"] == "host_info") {
+            // Connection check from the extension's popup: answer without
+            // starting the OpenDM window.
+            opendm::write_native_raw_json(std::string("{\"status\": \"ok\", \"host\": \"opendm-native-host\", \"version\": \"") +
+                                          OPENDM_VERSION + "\"}");
+            continue;
+        }
         opendm::ensure_opendm_running();
         std::string response = opendm::IpcServer::send_command(incoming);
         if (response.find("Could not connect") != std::string::npos && incoming.find("\"extract_youtube\"") != std::string::npos) {
