@@ -240,6 +240,22 @@ int main() {
         std::string resp_vid = opendm::IpcServer::send_command(vid_tonec, "/tmp/opendm_test.sock");
         assert(resp_vid.find("\"status\": \"prompting\"") != std::string::npos);
 
+        // H. JSON request from the OpenDM browser extension: escaped characters
+        //    are decoded, and referer/cookies reach the download prompt.
+        opendm::DownloadPromptInfo seen;
+        test_ipc.set_download_prompt_callback([&seen](const opendm::DownloadPromptInfo& info) { seen = info; });
+        std::string ext_json = R"({"action":"download","url":"https://example.com/a.zip?x=1&y=%222%22",)"
+                               R"("filename":"say \"hi\".zip","referer":"https://example.com/page",)"
+                               R"("cookies":"sid=a\"b; theme=dark","user_agent":"UA/1.0"})";
+        std::string resp_ext = opendm::IpcServer::send_command(ext_json, "/tmp/opendm_test.sock");
+        assert(resp_ext.find("\"status\": \"prompting\"") != std::string::npos);
+        assert(resp_ext.find(R"(say \"hi\".zip)") != std::string::npos); // reply stays valid JSON
+        assert(seen.url == "https://example.com/a.zip?x=1&y=%222%22");
+        assert(seen.filename == "say \"hi\".zip");
+        assert(seen.referer == "https://example.com/page");
+        assert(seen.cookies == "sid=a\"b; theme=dark");
+        assert(seen.user_agent == "UA/1.0");
+
         test_ipc.stop();
         std::cout << "  [PASS] IpcServer successfully filtered web pages/images and accepted genuine downloads." << std::endl;
     }

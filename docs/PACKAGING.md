@@ -7,10 +7,11 @@ native-messaging manifests end up in the same places on every distribution:
 | Path | Purpose |
 |---|---|
 | `/usr/bin/opendm`, `/usr/bin/opendm-native-host` | Application and browser messaging host |
-| `/usr/lib/mozilla/native-messaging-hosts/com.tonec.idm.json` | Firefox manifest |
-| `/etc/opt/chrome/native-messaging-hosts/com.tonec.idm.json` | Google Chrome manifest |
-| `/etc/chromium/native-messaging-hosts/com.tonec.idm.json` | Chromium manifest |
-| `/usr/share/opendm/` | Stylesheet, UI assets, browser extension |
+| `/usr/lib/mozilla/native-messaging-hosts/io.github.opendm.json` | Firefox manifest |
+| `/etc/opt/chrome/native-messaging-hosts/io.github.opendm.json` | Google Chrome manifest |
+| `/etc/chromium/native-messaging-hosts/io.github.opendm.json` | Chromium manifest |
+| `/usr/share/opendm/` | Stylesheet and UI assets |
+| `/usr/share/opendm/browser-extension/` | OpenDM browser extension, unpacked |
 
 The version always comes from `project(OpenDM VERSION X.Y.Z)` in
 `CMakeLists.txt` (`scripts/version.sh` prints it). Built packages are written

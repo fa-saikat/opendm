@@ -35,13 +35,12 @@ fi
 
 MANIFEST_CONTENT_CHROME=$(cat <<EOF
 {
-  "name": "com.tonec.idm",
-  "description": "OpenDM Native Messaging Host for Linux (IDM Compatible)",
+  "name": "io.github.opendm",
+  "description": "OpenDM native messaging host",
   "path": "${HOST_BIN}",
   "type": "stdio",
   "allowed_origins": [
-    "chrome-extension://ngpampappnmepgilojfohadhhmbhlaek/",
-    "chrome-extension://bgdpgdfcmienfknnkgcfbgjjffmnokch/"
+    "chrome-extension://nnkpmdifclcaiakeomkmbddaekiaokfa/"
   ]
 }
 EOF
@@ -49,13 +48,12 @@ EOF
 
 MANIFEST_CONTENT_FIREFOX=$(cat <<EOF
 {
-  "name": "com.tonec.idm",
-  "description": "OpenDM Native Messaging Host for Linux (IDM Compatible)",
+  "name": "io.github.opendm",
+  "description": "OpenDM native messaging host",
   "path": "${HOST_BIN}",
   "type": "stdio",
   "allowed_extensions": [
-    "mozilla_cc@tonec.com",
-    "idm_integration@tonec.com"
+    "opendm@fa-saikat.github.io"
   ]
 }
 EOF
@@ -73,8 +71,9 @@ CHROME_TARGETS=(
 for dir in "${CHROME_TARGETS[@]}"; do
     [ -d "$(dirname "${dir}")" ] || continue
     mkdir -p "${dir}"
-    echo "${MANIFEST_CONTENT_CHROME}" > "${dir}/com.tonec.idm.json"
-    echo "Installed Chrome manifest to ${dir}/com.tonec.idm.json"
+    rm -f "${dir}/com.tonec.idm.json"  # left behind by OpenDM 1.0.0
+    echo "${MANIFEST_CONTENT_CHROME}" > "${dir}/io.github.opendm.json"
+    echo "Installed Chrome manifest to ${dir}/io.github.opendm.json"
 done
 
 # Firefox paths
@@ -86,8 +85,10 @@ FIREFOX_TARGETS=(
 for dir in "${FIREFOX_TARGETS[@]}"; do
     [ -d "$(dirname "${dir}")" ] || continue
     mkdir -p "${dir}"
-    echo "${MANIFEST_CONTENT_FIREFOX}" > "${dir}/com.tonec.idm.json"
-    echo "Installed Firefox manifest to ${dir}/com.tonec.idm.json"
+    rm -f "${dir}/com.tonec.idm.json"  # left behind by OpenDM 1.0.0
+    echo "${MANIFEST_CONTENT_FIREFOX}" > "${dir}/io.github.opendm.json"
+    echo "Installed Firefox manifest to ${dir}/io.github.opendm.json"
 done
 
 echo "Native messaging manifests successfully registered."
+echo "Next, load the OpenDM extension in your browser; see the Browser Integration section of README.md."

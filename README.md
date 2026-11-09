@@ -29,6 +29,7 @@ This fork, maintained by [FA Saikat](https://github.com/fa-saikat), changes the 
 * **GTK3 user interface**: the GUI was ported from GTK4 to GTK 3 (>= 3.22), so it runs on GTK3-only desktops and distributions.
 * **Distribution packages**: `.deb` (Debian/Ubuntu), `.rpm` (Fedora, openSUSE) and Arch Linux packages, built and install-tested in CI. See [docs/PACKAGING.md](docs/PACKAGING.md).
 * **Release automation**: GitHub Releases are published only when a `release/X.Y.Z` branch is merged into `main`.
+* **Own browser extension**: a new GPL extension for Chrome and Firefox replaces the bundled IDM Integration Module, with native host `io.github.opendm`.
 * **Fixes**: native-messaging manifest install paths, an out-of-bounds bug in the MP4 muxer, and missing build-dependency declarations.
 
 ## Notice (from the original author)
@@ -52,7 +53,7 @@ sudo zypper install ./opendm-*.suse.x86_64.rpm
 sudo pacman -U opendm-*-x86_64.pkg.tar.zst
 ```
 
-Packages install the browser native-messaging manifests system-wide for Firefox, Chrome and Chromium.
+Packages install the browser native-messaging manifests system-wide for Firefox, Chrome and Chromium, and the browser extension to `/usr/share/opendm/browser-extension`; see [Browser Integration](#browser-integration).
 
 
 ---
@@ -135,15 +136,25 @@ This installs:
 
 ## Browser Integration
 
-**Installed from a package?** The `.deb`, `.rpm` and Arch packages already register the native messaging host system-wide for Firefox, Google Chrome and Chromium. For Brave or Microsoft Edge, also run `./install_native_host.sh` from a checkout of this repository; it finds the packaged `/usr/bin/opendm-native-host` automatically. Then load the extension (steps 2–5).
+OpenDM has its own browser extension in [`browser-extension/`](browser-extension/) (GPL-3.0-or-later). It works in Chrome, Chromium, Brave, Edge and Firefox 128+ and:
 
-**Built from source:**
+* hands browser downloads to OpenDM. If OpenDM isn't running it starts it; if OpenDM can't take a download, the download carries on in the browser;
+* adds **Download link with OpenDM**, **Download with OpenDM** (images, video, audio) and, on YouTube, **Download this video with OpenDM** to the right-click menu;
+* has a toolbar popup to turn download capture on or off, skip small files, and check the connection to OpenDM.
 
-1. Run `./install_desktop.sh` to install Native Messaging manifests.
-2. In your browser (Chrome / Brave / Edge), navigate to `chrome://extensions/`.
-3. Enable **Developer mode** (top right toggle).
-4. Click **Load unpacked** and select the [`extension_extracted/`](extension_extracted/) directory from this repository.
-5. In Firefox, navigate to `about:debugging#/runtime/this-firefox` and select **Load Temporary Add-on** pointing to `extension_extracted/manifest.json`.
+Downloads from private/incognito windows are never captured.
+
+### 1. Register the native messaging host
+
+* **Installed from a package:** nothing to do for Firefox, Google Chrome and Chromium. For Brave or Microsoft Edge, run `./install_native_host.sh` from a checkout of this repository; it finds the packaged `/usr/bin/opendm-native-host` automatically.
+* **Built from source:** run `./install_desktop.sh`.
+
+### 2. Load the extension
+
+* **Chrome, Chromium, Brave, Edge:** open `chrome://extensions/`, turn on **Developer mode**, click **Load unpacked** and pick `/usr/share/opendm/browser-extension` (package install), `~/.local/share/opendm/browser-extension` (`install_desktop.sh`) or `browser-extension/` in this repository. The extension ID is always `nnkpmdifclcaiakeomkmbddaekiaokfa`, which the native host expects.
+* **Firefox:** open `about:debugging#/runtime/this-firefox`, click **Load Temporary Add-on** and pick `manifest.json` in one of the folders above. Firefox removes temporary add-ons when it restarts until a signed build is published.
+
+If the popup says the native host isn't installed, re-run step 1 and restart the browser. Set `OPENDM_DEBUG=1` in the browser's environment to log host traffic to `~/.cache/opendm/native-host.log`.
 
 ---
 
@@ -178,7 +189,7 @@ opendm/
 │   ├── ui/           # GTK3 user interface and custom widgets
 │   └── main.cpp      # CLI argument parsing and GTK application entry point
 ├── tests/            # Automated Catch2/CTest suites
-├── extension_extracted/ # Browser WebExtension
+├── browser-extension/   # OpenDM browser extension (Chrome & Firefox)
 └── install_desktop.sh# Desktop installation script
 ```
 

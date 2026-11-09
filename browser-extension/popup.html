@@ -1,0 +1,32 @@
+<!doctype html>
+<!-- OpenDM Browser Integration. SPDX-License-Identifier: GPL-3.0-or-later -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>OpenDM</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <img src="icons/opendm-32.png" alt="" width="24" height="24">
+    <h1>OpenDM</h1>
+  </header>
+
+  <label class="row">
+    <input type="checkbox" id="captureDownloads">
+    <span>Send browser downloads to OpenDM</span>
+  </label>
+
+  <label class="row">
+    <span>Skip files smaller than</span>
+    <input type="number" id="minSizeKiB" min="0" step="1" inputmode="numeric">
+    <span>KiB</span>
+  </label>
+
+  <p class="hint">Right-click a link, image or video, or a YouTube page, to send it to OpenDM.</p>
+
+  <p id="status" class="status" role="status">Checking connection…</p>
+
+  <script src="popup.js"></script>
+</body>
+</html>

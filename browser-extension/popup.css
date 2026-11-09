@@ -1,0 +1,52 @@
+/* OpenDM Browser Integration. SPDX-License-Identifier: GPL-3.0-or-later */
+:root {
+  color-scheme: light dark;
+  --ok: #26a269;
+  --bad: #c01c28;
+}
+
+body {
+  margin: 0;
+  padding: 12px 14px;
+  width: 300px;
+  font: 13px/1.4 system-ui, sans-serif;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+input[type="number"] {
+  width: 70px;
+}
+
+.hint {
+  margin: 10px 0;
+  opacity: 0.75;
+}
+
+.status {
+  margin: 10px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+}
+
+.status.ok { color: var(--ok); }
+.status.bad { color: var(--bad); }
+
+.status a { color: inherit; }
