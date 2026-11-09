@@ -50,9 +50,16 @@
   </keywords>
   <content_rating type="oars-1.1"/>
   <releases>
-    <release version="1.0.0" date="2026-10-29">
+    <release version="1.0.0" date="2026-11-05">
       <description>
-        <p>Initial release of OpenDM featuring dynamic multipart acceleration, 4K multi-client stream aggregation, and authentic IDM browser extension integration.</p>
+        <p>First release of the GTK3 fork of OpenDM, created by Nader Mahbub Khan.</p>
+        <ul>
+          <li>Ported the interface from GTK4 to GTK3</li>
+          <li>Follows the desktop GTK theme, light or dark</li>
+          <li>Packages for Debian/Ubuntu, Fedora, openSUSE and Arch Linux</li>
+          <li>Browser integration setup works with packaged installs</li>
+        </ul>
+        <p>Includes the original OpenDM features: dynamic multipart acceleration, 4K multi-client stream aggregation and IDM browser extension integration.</p>
       </description>
     </release>
   </releases>
