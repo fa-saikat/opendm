@@ -61,13 +61,13 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/opendm.desktop
 %{_datadir}/opendm/
 %dir %{_prefix}/lib/mozilla
 %dir %{_prefix}/lib/mozilla/native-messaging-hosts
-%{_prefix}/lib/mozilla/native-messaging-hosts/com.tonec.idm.json
+%{_prefix}/lib/mozilla/native-messaging-hosts/io.github.opendm.json
 %dir %{_sysconfdir}/opt/chrome
 %dir %{_sysconfdir}/opt/chrome/native-messaging-hosts
-%{_sysconfdir}/opt/chrome/native-messaging-hosts/com.tonec.idm.json
+%{_sysconfdir}/opt/chrome/native-messaging-hosts/io.github.opendm.json
 %dir %{_sysconfdir}/chromium
 %dir %{_sysconfdir}/chromium/native-messaging-hosts
-%{_sysconfdir}/chromium/native-messaging-hosts/com.tonec.idm.json
+%{_sysconfdir}/chromium/native-messaging-hosts/io.github.opendm.json
 
 %changelog
 * Tue Nov 03 2026 FA Saikat <fahimabrar.saikat@gmail.com> - 1.0.0-1

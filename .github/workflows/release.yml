@@ -94,6 +94,7 @@ jobs:
           | openSUSE Tumbleweed | \`opendm-${VERSION}-1.suse.x86_64.rpm\` |
           | Arch Linux and derivatives | \`opendm-${VERSION}-1-x86_64.pkg.tar.zst\` |
           | Source RPM | \`opendm-${VERSION}-1.fc*.src.rpm\` |
+          | Browser extension (Chrome, Firefox) | \`opendm-browser-extension-${VERSION}.zip\` |
 
           Verify downloads with \`sha256sum -c SHA256SUMS\`.
           EOF

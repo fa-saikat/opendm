@@ -14,6 +14,27 @@ permissions:
   contents: read
 
 jobs:
+  extension:
+    name: Browser extension
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - name: Check JavaScript syntax
+        run: for f in browser-extension/*.js; do node --check "$f"; done
+      - name: Validate manifests
+        run: |
+          jq -e '.manifest_version == 3 and .background.service_worker and .browser_specific_settings.gecko.id' browser-extension/manifest.json
+          for f in data/native-messaging/*.json; do jq -e '.name == "io.github.opendm"' "$f"; done
+      - name: Build zip
+        run: ./scripts/package_extension.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pkg-extension
+          path: dist/*.zip
+          if-no-files-found: error
+
   deb:
     name: .deb (Debian / Ubuntu)
     runs-on: ubuntu-latest
@@ -38,6 +59,14 @@ jobs:
         run: |
           apt-get install -y -qq ./dist/*.deb
           opendm --version
+          # Native messaging round trip: a 4-byte length prefix, then JSON.
+          msg='{"action":"host_info"}'
+          reply="$(printf "\\x$(printf %02x ${#msg})\\x00\\x00\\x00%s" "$msg" | opendm-native-host | tail -c +5)"
+          echo "host reply: $reply"
+          echo "$reply" | grep -q '"status": "ok"'
+          test -f /usr/share/opendm/browser-extension/manifest.json
+          test -f /etc/opt/chrome/native-messaging-hosts/io.github.opendm.json
+          test -f /usr/lib/mozilla/native-messaging-hosts/io.github.opendm.json
       - uses: actions/upload-artifact@v4
         with:
           name: pkg-deb

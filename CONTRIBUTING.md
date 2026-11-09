@@ -95,8 +95,9 @@ Pushing tags, pushing to `main`, or merging any other branch never publishes a
 release.
 
 1. Create `release/X.Y.Z` from `main`.
-2. Set `project(OpenDM VERSION X.Y.Z)` in `CMakeLists.txt` and add a
-   `<release>` entry to `data/io.github.opendm.OpenDM.metainfo.xml`.
+2. Set `project(OpenDM VERSION X.Y.Z)` in `CMakeLists.txt`, set the same
+   `"version"` in `browser-extension/manifest.json`, and add a `<release>`
+   entry to `data/io.github.opendm.OpenDM.metainfo.xml`.
 3. Open a pull request into `main` and merge it once CI is green.
 
 `.github/workflows/release.yml` then checks that the branch name matches the

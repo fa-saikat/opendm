@@ -153,26 +153,22 @@ install(FILES data/opendm.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applicati
 install(FILES data/io.github.opendm.OpenDM.metainfo.xml DESTINATION ${CMAKE_INSTALL_DATADIR}/metainfo)
 install(DIRECTORY data/ui_assets/ DESTINATION ${CMAKE_INSTALL_DATADIR}/opendm/ui_assets)
 install(FILES src/ui/style.css DESTINATION ${CMAKE_INSTALL_DATADIR}/opendm)
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/opendm_extension.xpi")
-    install(FILES opendm_extension.xpi DESTINATION ${CMAKE_INSTALL_DATADIR}/opendm)
-endif()
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/extension_extracted")
-    install(DIRECTORY extension_extracted/ DESTINATION ${CMAKE_INSTALL_DATADIR}/opendm/extension)
-endif()
+# OpenDM's browser extension, unpacked, for Chrome's "Load unpacked".
+install(DIRECTORY browser-extension/ DESTINATION ${CMAKE_INSTALL_DATADIR}/opendm/browser-extension)
 
 # Browser Native Messaging Manifests
 # Firefox only searches lib/mozilla (and lib64/mozilla), never the multiarch
 # libdir that CMAKE_INSTALL_LIBDIR expands to on Debian/Ubuntu.
-install(FILES data/native-messaging/com.tonec.idm.firefox.json
+install(FILES data/native-messaging/io.github.opendm.firefox.json
     DESTINATION lib/mozilla/native-messaging-hosts
-    RENAME com.tonec.idm.json
+    RENAME io.github.opendm.json
 )
 # Chrome and Chromium read system-wide manifests from /etc
 # (CMAKE_INSTALL_FULL_SYSCONFDIR resolves to /etc for a /usr prefix).
 foreach(chrome_dir opt/chrome chromium)
-    install(FILES data/native-messaging/com.tonec.idm.chrome.json
+    install(FILES data/native-messaging/io.github.opendm.chrome.json
         DESTINATION ${CMAKE_INSTALL_FULL_SYSCONFDIR}/${chrome_dir}/native-messaging-hosts
-        RENAME com.tonec.idm.json
+        RENAME io.github.opendm.json
     )
 endforeach()
 

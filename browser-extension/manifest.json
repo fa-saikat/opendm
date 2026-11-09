@@ -1,0 +1,51 @@
+{
+  "manifest_version": 3,
+  "name": "OpenDM Browser Integration",
+  "short_name": "OpenDM",
+  "version": "1.0.0",
+  "description": "Send downloads, links and videos from your browser to the OpenDM download manager.",
+  "author": "FA Saikat",
+  "homepage_url": "https://github.com/fa-saikat/opendm",
+  "icons": {
+    "16": "icons/opendm-16.png",
+    "32": "icons/opendm-32.png",
+    "48": "icons/opendm-48.png",
+    "128": "icons/opendm-128.png"
+  },
+  "action": {
+    "default_title": "OpenDM",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/opendm-16.png",
+      "32": "icons/opendm-32.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js",
+    "scripts": [
+      "background.js"
+    ]
+  },
+  "permissions": [
+    "nativeMessaging",
+    "downloads",
+    "contextMenus",
+    "cookies",
+    "storage"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA7VjbJfK9dfNKVh1Mxf5sep8lh2+r6sHDHBHeP+debNRZFnMKSnpd+CzBMmLvy6IxQ+nzZ0W1hUnoFhfsNpWeo2rgC/q5qOCNq2j8+UyQBq02sH3PpUQCXWhgGEK0VsE/2rlxs+LDfNvwNp9gvuLjrFCftSC4ZoOaU5qcf6EfoEpgi2HX/BcOyFso7z0puBdSYPoq2KlpZRI2m+fL4+WFDE6D+Y0toajH2gVwAt/+Uk/lhfOd1HyRttr17SFdVbmmuOuGk9jZWvnYCJIHlv/KNuwiTqG7jZxhgY72OdFES/Q6KqjrMQ27J1Rgun+Z1rCqQSLt/tbOBqg8NWu3JKkfZwIDAQAB",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "opendm@fa-saikat.github.io",
+      "strict_min_version": "128.0",
+      "data_collection_permissions": {
+        "required": [
+          "none"
+        ]
+      }
+    }
+  }
+}
